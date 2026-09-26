@@ -1,0 +1,72 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:${API_PORT:-8000}
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
+      - MAILHOG_API_URL=${MAILHOG_API_URL:-http://mailhog:8025/api/v2}
+      - API_SHARED_SECRET=${API_SHARED_SECRET:-change-me-hackathon-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=phish
+      - POSTGRES_PASSWORD=phish
+      - POSTGRES_DB=phishdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phish -d phishdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI + API
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: ["python", "seed/seed.py"]
+    volumes:
+      - ./backend:/app
+      - ./seed:/app/seed
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata:
