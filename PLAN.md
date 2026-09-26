@@ -46,7 +46,7 @@ Why: Python has the best libraries for email/header parsing (SPF/DKIM/DMARC) and
 
 The Red-Team Generator calls the same Gemini API as the detection layer, but with a "write a phishing email" prompt instead of a "classify this email" prompt. Its only output destinations are Mailhog (sandbox SMTP) and the seed/training corpus — it never has a code path to any real mail server or external address.
 
-Keep it to 4 containers: `frontend`, `api`, `postgres`, `mailhog`, plus a one-shot `seed` job. LLM calls run synchronously inside the API request — no queue/worker infra needed for a 24-hour demo. (If the Mailhog live-polling stretch goal gets built, it runs as a simple `asyncio` background loop inside the `api` process, not a separate queue service.)
+Containers: `frontend`, `api`, `postgres`, `mailhog`, plus a one-shot `seed` job — and a standalone `redteam` service (see [Section 7](#7-red-team--offensive-module)) that owns the offensive side end-to-end and only ever talks to Mailhog. LLM calls run synchronously inside the API request — no queue/worker infra needed for a 24-hour demo. (If the Mailhog live-polling stretch goal gets built, it runs as a simple `asyncio` background loop inside the `api` process, not a separate queue service.)
 
 ## 4. Repo Structure (target)
 
@@ -110,6 +110,7 @@ Status as of 2026-09-26: `docker-compose.yml` and `.env.example` exist. Everythi
 | `postgres` | `postgres:16-alpine` | Stores emails, header parse results, verdicts, feedback | Named volume `pgdata`; schema via `infra/postgres/init.sql` |
 | `mailhog` | `mailhog/mailhog` | Fake SMTP + web UI + API mailbox for the "live inbox" demo | Web UI :8025, SMTP :1025 |
 | `seed` | one-shot, built from `backend` image | Loads sample phishing/ham emails into Postgres on first boot | `restart: "no"`, runs after postgres healthcheck |
+| `redteam` | Python 3.12 + FastAPI (own image in `redteam/`) | Standalone offensive service: generates synthetic phishing via Gemini, delivers only to Mailhog | Port :8001; owned by Anees; depends on mailhog; no DB access |
 
 ## 6. Detection Pipeline
 
@@ -155,6 +156,10 @@ Notes:
 ## 7. Red Team / Offensive Module
 
 Goal: prove the detector actually generalizes by attacking it with our own generator, and give the demo a "we built both sides" story.
+
+> **Implementation note (2026-09-26):** the red team is built as a **standalone FastAPI service** in the top-level `redteam/` folder (owned by Anees), not inside `backend/app/`. This keeps it decoupled from the blue-team backend (no shared code, no merge conflicts) and reinforces the safety story — the attacker is its own container whose only outbound path is Mailhog. It runs on port 8001, has no Postgres access and no external network dependency, and exposes `POST /redteam/generate`. Files: `redteam/app/{main,generator,samples,sender,schemas}.py`. The frontend "Generate Attack" button calls `:8001` for generation; the resulting email still flows through the blue-team pipeline via Mailhog exactly as described below. Catch-rate (`redteam_runs`) is wired up last, once the blue-team `/verdicts` endpoint exists.
+>
+> **Generation is template-driven, not live-LLM (2026-09-26):** we tried live Gemini generation first, but the model refuses to produce phishing/BEC content (a policy refusal, not a bug), and deliberately disabling the provider's safety settings to force it is off the table. Instead the generator fills an in-house bank of clearly-synthetic sample templates (`redteam/app/samples.py`) — the offensive analogue of the seed spam corpus (Nazario/PhishTank). This is more demo-robust anyway: no refusals, no network flakiness, deterministic (seedable) output, and we control the "tells" directly. `sender.py` then stamps each sample with realistic header tells (mismatched Reply-To + Return-Path, failing SPF/DKIM/DMARC) so the blue-team Layer-1 heuristics actually fire — without those, a sample would only exercise the LLM pass. The output shape matches what a live-LLM path would return, so a compliant generation backend could be swapped in later without touching callers.
 
 ### How it works
 
@@ -216,7 +221,7 @@ Goal: prove the detector actually generalizes by attacking it with our own gener
 4. Open `http://localhost:5173` (frontend), `http://localhost:8025` (Mailhog UI), `http://localhost:8000/docs` (FastAPI Swagger)
 5. Source directories are bind-mounted — local edits hot-reload in both frontend (Vite) and backend (uvicorn `--reload`). Only rebuild (`docker compose up --build`) when dependencies change.
 6. `Makefile` shortcuts (once added): `make up`, `make down`, `make seed`, `make logs service=api`.
-7. Git workflow: feature branches per teammate, PR into `main`. `.env` is never committed (only `.env.example`). Postgres data persists in a named volume — `docker compose down -v` only if you want a clean reseed.
+7. Git workflow: feature branches per teammate (e.g. `feature/Anees-Red-Team`) → PR into the shared `UAT` branch → once tested on `UAT`, PR from `UAT` into `main`. `.env` is never committed (only `.env.example`). Postgres data persists in a named volume — `docker compose down -v` only if you want a clean reseed.
 
 ## 12. Demo Script (for judging)
 
