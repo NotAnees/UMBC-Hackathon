@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.detection.heuristics import HeuristicResult, run_heuristics
+from app.detection.llm_pass import LlmResult, run_llm_pass
 from app.detection.scorer import RiskScore, ScoreResult, compute_risk_score, score_heuristics
 from app.email_parser import ParsedEmail, parse_email
 from app.models import Email, Verdict
@@ -18,6 +19,7 @@ def _analyze(
     source: str,
     domain_age_days: int | None,
     db: Session,
+    use_llm: bool = True,
 ) -> AnalyzeResponse:
     parsed = parse_email(raw)
     if not any([parsed.body_text, parsed.body_html, parsed.subject, parsed.sender]):
@@ -31,11 +33,30 @@ def _analyze(
         body_html=parsed.body_html,
         domain_age_days=domain_age_days,
     )
-    scored = score_heuristics(heuristics)
-    risk = compute_risk_score(heuristics)
 
-    email, verdict = _persist(parsed, source, domain_age_days, heuristics, scored, risk, db)
-    return _response(email, verdict, parsed, heuristics, scored, risk)
+    llm = (
+        run_llm_pass(
+            subject=parsed.subject,
+            sender=parsed.sender,
+            reply_to=parsed.reply_to,
+            auth_results=parsed.auth_results,
+            body_text=parsed.body_text,
+            body_html=parsed.body_html,
+            heuristics=heuristics,
+        )
+        if use_llm
+        else None
+    )
+
+    scored = score_heuristics(heuristics)
+    risk = compute_risk_score(
+        heuristics,
+        llm_confidence=llm.risk_subscore if llm else None,
+        llm_verdict=llm.verdict if llm else None,
+    )
+
+    email, verdict = _persist(parsed, source, domain_age_days, heuristics, scored, risk, llm, db)
+    return _response(email, verdict, parsed, heuristics, scored, risk, llm)
 
 
 def _persist(
@@ -45,6 +66,7 @@ def _persist(
     heuristics: HeuristicResult,
     scored: ScoreResult,
     risk: RiskScore,
+    llm: LlmResult | None,
     db: Session,
 ) -> tuple[Email, Verdict]:
     email = Email(
@@ -64,11 +86,16 @@ def _persist(
         email_id=email.id,
         heuristic_score=scored.heuristic_score,
         heuristic_findings=scored.heuristic_findings,
+        llm_verdict=llm.verdict if llm else None,
+        llm_confidence=llm.confidence if llm else None,
+        llm_rationale=llm.rationale if llm else None,
+        llm_risky_spans={"spans": llm.risky_spans} if llm else None,
         link_mismatch=heuristics.link_mismatch,
         unfamiliar_link=heuristics.unfamiliar_link,
         typosquat=heuristics.typosquat,
         domain_age_days=domain_age_days,
         risk_score=risk.risk_score,
+        risk_label=risk.risk_label,
         risk_components=risk.components,
         final_score=scored.final_score,
         final_label=scored.final_label,
@@ -86,6 +113,7 @@ def _response(
     heuristics: HeuristicResult,
     scored: ScoreResult,
     risk: RiskScore,
+    llm: LlmResult | None,
 ) -> AnalyzeResponse:
     return AnalyzeResponse(
         email_id=email.id,
@@ -108,6 +136,17 @@ def _response(
         link_mismatch=heuristics.link_mismatch,
         unfamiliar_link=heuristics.unfamiliar_link,
         typosquat=heuristics.typosquat,
+        llm=(
+            {
+                "verdict": llm.verdict,
+                "confidence": llm.confidence,
+                "rationale": llm.rationale,
+                "risky_spans": llm.risky_spans,
+                "signals_confirmed": llm.signals_confirmed,
+            }
+            if llm
+            else None
+        ),
         signals=[
             {
                 "name": s.name,
@@ -123,7 +162,9 @@ def _response(
 @router.post("/analyze", response_model=AnalyzeResponse)
 def analyze(payload: AnalyzeRequest, db: Session = Depends(get_db)) -> AnalyzeResponse:
     """Analyze pasted text — either a full .eml or just a message body."""
-    return _analyze(payload.raw_email, payload.source, payload.domain_age_days, db)
+    return _analyze(
+        payload.raw_email, payload.source, payload.domain_age_days, db, payload.use_llm
+    )
 
 
 @router.post("/analyze/eml", response_model=AnalyzeResponse)
@@ -131,6 +172,7 @@ async def analyze_eml(
     request: Request,
     source: EmailSource = "upload",
     domain_age_days: int | None = Query(default=None, ge=0),
+    use_llm: bool = True,
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
     """Analyze a raw .eml posted as the request body.
@@ -141,4 +183,4 @@ async def analyze_eml(
     raw = await request.body()
     if not raw:
         raise HTTPException(status_code=422, detail="Empty request body")
-    return _analyze(raw, source, domain_age_days, db)
+    return _analyze(raw, source, domain_age_days, db, use_llm)

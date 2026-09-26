@@ -40,6 +40,7 @@ class Verdict(Base):
     typosquat: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     domain_age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     risk_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    risk_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
     risk_components: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     final_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     final_label: Mapped[str | None] = mapped_column(String(20), nullable=True)

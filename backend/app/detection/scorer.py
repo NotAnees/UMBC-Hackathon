@@ -7,6 +7,9 @@ from app.detection.heuristics import AUTH_SIGNAL_NAMES, HeuristicResult
 LEGITIMATE_MAX = 33
 SUSPICIOUS_MAX = 66
 
+# An LLM phishing call above this confidence floors the label at phishing.
+LLM_PHISHING_FLOOR = 85
+
 # Must sum to 1.0. Tune here — domain_age is the noisiest input (old infrastructure
 # gets compromised, legitimate businesses register new domains) and urgency_language
 # the most false-positive-prone, so both are held low relative to hard evidence.
@@ -52,6 +55,7 @@ def compute_risk_score(
     result: HeuristicResult,
     *,
     llm_confidence: float | None = None,
+    llm_verdict: str | None = None,
 ) -> RiskScore:
     """Weighted risk score across the five components in `RISK_WEIGHTS`.
 
@@ -87,9 +91,16 @@ def compute_risk_score(
         for name, value in available.items()
     }
 
+    label = label_for(risk)
+    # Floor per PLAN.md section 6: a high-confidence phishing call from the semantic
+    # pass stands even when the deterministic signals are quiet, which is the BEC case
+    # (no bad links, no failed auth, nothing for the other components to measure).
+    if llm_verdict == "phishing" and (llm_confidence or 0) > LLM_PHISHING_FLOOR:
+        label = "phishing"
+
     return RiskScore(
         risk_score=risk,
-        risk_label=label_for(risk),
+        risk_label=label,
         components=components,
         unavailable=unavailable,
         weight_covered=weight_covered,
