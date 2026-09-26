@@ -68,6 +68,56 @@ class BenignRequest(BaseModel):
     send: bool = True
 
 
+class BatchRequest(BaseModel):
+    count: int = Field(default=10, ge=1, le=50)
+    # Fraction of the batch that should be legitimate (benign) samples.
+    benign_ratio: float = Field(default=0.3, ge=0.0, le=1.0)
+    send: bool = True
+
+
+class BatchItem(BaseModel):
+    kind: str          # "attack" | "benign"
+    label: str         # ground truth: "phishing" | "legitimate"
+    variant: str       # attack_type or benign category
+    difficulty: Optional[str]
+    from_address: str
+    subject: str
+    tell_count: int
+    delivered: bool
+
+
+class BatchResponse(BaseModel):
+    total: int
+    delivered: int
+    counts: dict[str, int]      # {"phishing": n, "legitimate": n}
+    items: list[BatchItem]
+
+
+class InboxItem(BaseModel):
+    id: str
+    from_addr: str
+    to_addr: str
+    subject: str
+    created: Optional[str]
+    redteam: bool
+    spf: Optional[str]
+
+
+class InboxResponse(BaseModel):
+    reachable: bool
+    total: int
+    items: list[InboxItem]
+
+
+class StatsResponse(BaseModel):
+    total_generated: int
+    delivered: int
+    by_label: dict[str, int]
+    by_attack_type: dict[str, int]
+    by_difficulty: dict[str, int]
+    top_tells: list[list]       # [[tell, count], ...] sorted desc
+
+
 class BenignResponse(BaseModel):
     category: BenignCategory
     target_brand: Optional[str]
