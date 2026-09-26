@@ -56,6 +56,11 @@ AUTH_RESULT_RISK = {
 }
 FAILING_AUTH_RESULTS = frozenset({"fail", "softfail"})
 
+# Urgency subscore by number of matched phrases. Deliberately shallow at one hit:
+# legitimate mail says "urgent" all the time, so a lone match should nudge the score,
+# not drive it. Tune here.
+URGENCY_HIT_SCALE = {1: 40.0, 2: 70.0}
+
 # How much each kind of link problem contributes to the url_mismatch subscore.
 URL_MISMATCH_SEVERITY = {
     "text_spoof": 100.0,
@@ -170,9 +175,21 @@ def _identity_signal(sender: str | None, reply_to: str | None) -> Signal:
     )
 
 
-def _keyword_signal(body_text: str | None) -> Signal:
+def urgency_hits(body_text: str | None) -> list[str]:
     text = (body_text or "").lower()
-    hits = [kw for kw in URGENCY_KEYWORDS if kw in text]
+    return [kw for kw in URGENCY_KEYWORDS if kw in text]
+
+
+def urgency_subscore(hits: list[str]) -> float:
+    """Graded by how many phrases matched. A single urgent-sounding phrase is weak
+    evidence — real mail says 'urgent' — while several stacked together is the
+    pattern manipulation actually follows."""
+    if not hits:
+        return 0.0
+    return URGENCY_HIT_SCALE.get(len(hits), 100.0)
+
+
+def _keyword_signal(hits: list[str]) -> Signal:
     return _signal("urgency_language", bool(hits), f"matched: {', '.join(hits)}")
 
 
@@ -198,9 +215,11 @@ def run_heuristics(
     typo_triggered, typo_reasons = check_typosquat(typo_candidates, brand_domains=brand_domains)
 
     outcomes = auth_outcomes(auth_results)
+    hits = urgency_hits(body_text)
+    identity = _identity_signal(sender, reply_to)
     signals = [
         *_auth_signals(outcomes),
-        _identity_signal(sender, reply_to),
+        identity,
         _signal("link_mismatch", link_triggered, "; ".join(f.reason for f in link_findings)),
         _signal("typosquat", typo_triggered, "; ".join(typo_reasons)),
         _signal(
@@ -208,7 +227,7 @@ def run_heuristics(
             unfamiliar_triggered,
             "; ".join(f.reason for f in unfamiliar_findings),
         ),
-        _keyword_signal(body_text),
+        _keyword_signal(hits),
     ]
 
     subscores: dict[str, float | None] = {
@@ -216,6 +235,8 @@ def run_heuristics(
         "url_mismatch": url_mismatch_subscore(link_findings),
         "typosquat": 100.0 if typo_triggered else 0.0,
         "domain_age": domain_age_subscore(domain_age_days),
+        "identity_mismatch": 100.0 if identity.triggered else 0.0,
+        "urgency_language": urgency_subscore(hits),
     }
 
     score = min(sum(s.weight for s in signals if s.triggered), 100)

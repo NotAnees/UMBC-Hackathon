@@ -7,13 +7,17 @@ from app.detection.heuristics import AUTH_SIGNAL_NAMES, HeuristicResult
 LEGITIMATE_MAX = 33
 SUSPICIOUS_MAX = 66
 
-# risk = .3*llm_confidence + .2*auth_failure + .2*domain_age + .15*url_mismatch + .15*typosquat
+# Must sum to 1.0. Tune here — domain_age is the noisiest input (old infrastructure
+# gets compromised, legitimate businesses register new domains) and urgency_language
+# the most false-positive-prone, so both are held low relative to hard evidence.
 RISK_WEIGHTS = {
     "llm_confidence": 0.30,
     "auth_failure": 0.20,
-    "domain_age": 0.20,
     "url_mismatch": 0.15,
-    "typosquat": 0.15,
+    "domain_age": 0.10,
+    "typosquat": 0.10,
+    "identity_mismatch": 0.10,
+    "urgency_language": 0.05,
 }
 
 
@@ -57,13 +61,10 @@ def compute_risk_score(
     0-100 scale instead of being silently deflated toward "legitimate" by
     missing data. `weight_covered` reports how much of the formula actually ran.
     """
-    raw: dict[str, float | None] = {
-        "llm_confidence": llm_confidence,
-        "auth_failure": result.subscores.get("auth_failure"),
-        "domain_age": result.subscores.get("domain_age"),
-        "url_mismatch": result.subscores.get("url_mismatch"),
-        "typosquat": result.subscores.get("typosquat"),
-    }
+    raw: dict[str, float | None] = {"llm_confidence": llm_confidence}
+    for name in RISK_WEIGHTS:
+        if name != "llm_confidence":
+            raw[name] = result.subscores.get(name)
 
     available = {name: value for name, value in raw.items() if value is not None}
     unavailable = sorted(name for name, value in raw.items() if value is None)
