@@ -61,9 +61,6 @@ services:
       - "${REDTEAM_PORT:-8001}:8001"
     volumes:
       - ./redteam:/app
-    environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
     depends_on:
       - mailhog
 

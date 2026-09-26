@@ -1,71 +1,60 @@
-"""Calls Gemini to produce a synthetic phishing sample for detector testing.
+"""Builds a synthetic phishing sample by filling an in-house template from samples.py.
 
-Includes a deterministic offline fallback so the demo still works if the network or
-API key is unavailable — the same resilience posture the detection layer uses.
+We author the sample text ourselves (see samples.py) rather than calling an LLM: the
+content is a clearly-synthetic detector test fixture, and generating it locally means
+no network dependency and no provider refusals mid-demo. The output shape is identical
+to what a live LLM path would produce, so a generation backend could be swapped in later
+without changing callers.
 """
-import json
-import os
+import random
 import re
 
+from .samples import BANK, LOOKALIKE_SUFFIXES
 from .schemas import AttackType, GeneratedEmail
-from .templates import build_prompt
-
-# Overridable so we can bump the model without a code change. Verify the current
-# Google AI Studio model IDs before the demo rather than trusting this default.
-_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 
-def _parse_json_block(text: str) -> dict:
-    """Extract the JSON object from an LLM response, tolerating stray fences/prose."""
-    text = text.strip()
-    # Strip ```json ... ``` fences if the model added them despite instructions.
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fenced:
-        text = fenced.group(1)
-    else:
-        brace = re.search(r"\{.*\}", text, re.DOTALL)
-        if brace:
-            text = brace.group(0)
-    return json.loads(text)
+def _brand_slug(brand: str) -> str:
+    """'IT Helpdesk' -> 'it-helpdesk'; used to build a lookalike domain from the brand."""
+    slug = re.sub(r"[^a-z0-9]+", "-", brand.lower()).strip("-")
+    return slug or "account"
 
 
-def _offline_sample(attack_type: AttackType, brand: str | None) -> GeneratedEmail:
-    """Canned sample used when no API key is set or the API call fails."""
-    b = (brand or "IT Helpdesk").strip()
+def _lookalike_domain(brand: str, rng: random.Random) -> str:
+    """Fabricate a mismatched, brand-resembling domain (the sender-identity tell)."""
+    return f"{_brand_slug(brand)}{rng.choice(LOOKALIKE_SUFFIXES)}"
+
+
+_DEFAULT_BRANDS = {
+    AttackType.credential_harvest: "Webmail",
+    AttackType.bec_urgency: "Acme Corp",
+    AttackType.brand_impersonation: "PayPal",
+    AttackType.generic: "IT Helpdesk",
+}
+
+
+def generate_email(
+    attack_type: AttackType,
+    target_brand: str | None,
+    seed: int | None = None,
+) -> GeneratedEmail:
+    """Produce one synthetic phishing email for the given attack type and brand.
+
+    `seed` makes selection deterministic (useful for reproducible demo/tests); when None,
+    a random template and lookalike domain are chosen for variety.
+    """
+    rng = random.Random(seed)
+    brand = (target_brand or "").strip() or _DEFAULT_BRANDS[attack_type]
+
+    template = rng.choice(BANK[attack_type])
+    look_domain = _lookalike_domain(brand, rng)
+    link = f"http://{look_domain}/verify"
+
+    def fill(text: str) -> str:
+        return text.format(brand=brand, look_domain=look_domain, link=link)
+
     return GeneratedEmail(
-        subject=f"[Action Required] Verify your {b} account",
-        from_name=f"{b} Security Team",
-        from_address="security@it-helpdesk-support.example.net",
-        body=(
-            "Dear User,\n\n"
-            "We detected unusual sign-in activity on your account. To avoid suspension, "
-            "please verify your credentials within 24 hours by clicking the link below:\n\n"
-            "http://it-helpdesk-support.example.net/verify\n\n"
-            "Failure to act will result in permanent loss of access.\n\n"
-            f"Regards,\n{b} Security Team"
-        ),
+        subject=fill(template.subject),
+        body=fill(template.body),
+        from_name=fill(template.from_name),
+        from_address=f"{template.from_local}@{look_domain}",
     )
-
-
-def generate_email(attack_type: AttackType, target_brand: str | None) -> GeneratedEmail:
-    """Generate one synthetic phishing email. Falls back to a canned sample on any failure."""
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key or api_key.startswith("x"):
-        return _offline_sample(attack_type, target_brand)
-
-    try:
-        from google import genai
-
-        client = genai.Client(api_key=api_key)
-        prompt = build_prompt(attack_type, target_brand)
-        resp = client.models.generate_content(model=_MODEL, contents=prompt)
-        data = _parse_json_block(resp.text)
-        return GeneratedEmail(
-            subject=data["subject"],
-            body=data["body"],
-            from_name=data["from_name"],
-            from_address=data["from_address"],
-        )
-    except Exception:
-        # Never let a flaky API break the demo — fall back to the deterministic sample.
-        return _offline_sample(attack_type, target_brand)
