@@ -9,9 +9,10 @@ live-LLM path would produce, so a generation backend could be swapped in later.
 import random
 import re
 
+from .benign_samples import BENIGN_BANK, DEFAULT_BENIGN_BRANDS
 from .crafting import CraftedAttack, craft_auth, craft_domain, craft_link
 from .samples import BANK, LOOKALIKE_SUFFIXES
-from .schemas import AttackType, Difficulty
+from .schemas import AttackType, BenignCategory, Difficulty
 
 _DEFAULT_BRANDS = {
     AttackType.credential_harvest: "Webmail",
@@ -109,4 +110,50 @@ def generate_email(
         body_text=body_text,
         body_html=body_html,
         planted_tells=tells,
+    )
+
+
+def generate_benign(
+    category: BenignCategory,
+    target_brand: str | None,
+    seed: int | None = None,
+) -> CraftedAttack:
+    """Produce one legitimate-but-phishy sample: clean infrastructure, phishy surface.
+
+    Returns a CraftedAttack with ground_truth="legitimate", aligned headers, passing
+    auth, and a same-domain link. `planted_tells` carries the surface traps (why a naive
+    detector might false-positive) and `clean_signals` carries why it is actually clean.
+    """
+    rng = random.Random(seed)
+    brand = (target_brand or "").strip() or DEFAULT_BENIGN_BRANDS[category]
+    slug = _brand_slug(brand)
+    domain = f"{slug}.com"  # a consistent, self-owned domain — no lookalike
+
+    template = rng.choice(BENIGN_BANK[category])
+    link = f"https://{domain}/{ {'password_reset_requested': 'reset', 'shipping_update': 'track'}.get(category.value, 'account') }"
+
+    def fill(text: str) -> str:
+        return text.format(brand=brand, link=link)
+
+    # Aligned identity + passing auth = clean infrastructure.
+    from_address = f"{template.from_local}@{domain}"
+    auth_results = (
+        f"mailhog.local; spf=pass (sender IP is 198.51.100.20) smtp.mailfrom={from_address}; "
+        f"dkim=pass header.d={domain}; dmarc=pass (p=reject) header.from={domain}"
+    )
+    received_spf = f"pass (mailhog.local: domain of {from_address} designates 198.51.100.20 as permitted sender)"
+
+    return CraftedAttack(
+        subject=fill(template.subject),
+        from_name=fill(template.from_name),
+        from_address=from_address,
+        reply_to=from_address,          # aligned
+        envelope_sender=from_address,   # aligned (no Return-Path mismatch)
+        auth_results=auth_results,
+        received_spf=received_spf,
+        body_text=fill(template.body),
+        body_html=None,
+        planted_tells=list(template.surface_traps),
+        clean_signals=["spf_pass", "dkim_pass", "dmarc_pass", "domain_aligned", "link_matches_sender"],
+        ground_truth="legitimate",
     )
