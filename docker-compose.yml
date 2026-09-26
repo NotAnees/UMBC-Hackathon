@@ -61,8 +61,13 @@ services:
       - "${REDTEAM_PORT:-8001}:8001"
     volumes:
       - ./redteam:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
     depends_on:
-      - mailhog
+      mailhog:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   seed:
     build:

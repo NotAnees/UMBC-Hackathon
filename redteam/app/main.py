@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import generator, inbox, sender, store
+from . import db, generator, inbox, sender, store
 from .crafting import CraftedAttack
 from .schemas import (
     AttackType,
@@ -72,6 +72,36 @@ def _record(kind: str, variant: str, difficulty: str | None, a: CraftedAttack, d
     )
 
 
+def _persist(kind: str, variant: str, brand: str | None, difficulty: str | None, a: CraftedAttack):
+    """Best-effort save to Postgres so the blue team can pull the sample. No-ops if DB is down."""
+    db.save_sample(
+        email_row={
+            "source": "redteam",
+            "raw_headers": sender.header_block(a),
+            "subject": a.subject,
+            "sender": f"{a.from_name} <{a.from_address}>",
+            "reply_to": a.reply_to,
+            "return_path": a.envelope_sender,
+            "body_text": a.body_text,
+            "body_html": a.body_html,
+        },
+        run_row={
+            "kind": kind,
+            "ground_truth": a.ground_truth,
+            "attack_type": variant,
+            "target_brand": brand,
+            "difficulty": difficulty,
+            "planted_tells": a.planted_tells,
+        },
+    )
+
+
+@app.on_event("startup")
+def _startup():
+    """Create the shared tables if they don't exist yet (best-effort)."""
+    db.ensure_schema()
+
+
 # --- UI + health -----------------------------------------------------------
 
 
@@ -83,7 +113,11 @@ def console():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "sandbox_destination": sender.SANDBOX_DESTINATION}
+    return {
+        "status": "ok",
+        "sandbox_destination": sender.SANDBOX_DESTINATION,
+        "db_available": db.is_available(),
+    }
 
 
 # --- generation ------------------------------------------------------------
@@ -97,6 +131,7 @@ def generate(req: GenerateRequest):
     if req.send:
         sender.send_to_sandbox(attack)
         delivered = True
+        _persist("attack", req.attack_type.value, req.target_brand, req.difficulty.value, attack)
     _record("attack", req.attack_type.value, req.difficulty.value, attack, delivered)
     return GenerateResponse(
         attack_type=req.attack_type,
@@ -118,6 +153,7 @@ def generate_benign(req: BenignRequest):
     if req.send:
         sender.send_to_sandbox(sample)
         delivered = True
+        _persist("benign", req.category.value, req.target_brand, None, sample)
     _record("benign", req.category.value, None, sample, delivered)
     return BenignResponse(
         category=req.category,
@@ -147,6 +183,7 @@ def batch(req: BatchRequest):
             sample = generator.generate_benign(category, None)
             if req.send:
                 sender.send_to_sandbox(sample)
+                _persist("benign", category.value, None, None, sample)
             _record("benign", category.value, None, sample, req.send)
             items.append(
                 BatchItem(
@@ -161,6 +198,7 @@ def batch(req: BatchRequest):
             attack = generator.generate_email(atype, None, diff)
             if req.send:
                 sender.send_to_sandbox(attack)
+                _persist("attack", atype.value, None, diff.value, attack)
             _record("attack", atype.value, diff.value, attack, req.send)
             items.append(
                 BatchItem(

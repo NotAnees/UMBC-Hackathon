@@ -6,3 +6,10 @@ __pycache__/
 
 node_modules/
 dist/
+
+# Google API credentials & OAuth tokens — NEVER commit these
+secrets/
+credentials.json
+client_secret*.json
+token.json
+*.token.json
