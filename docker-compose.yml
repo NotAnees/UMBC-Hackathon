@@ -53,6 +53,20 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI + API
 
+  redteam:
+    build:
+      context: ./redteam
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${REDTEAM_PORT:-8001}:8001"
+    volumes:
+      - ./redteam:/app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+    depends_on:
+      - mailhog
+
   seed:
     build:
       context: ./backend
