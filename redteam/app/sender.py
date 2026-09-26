@@ -23,13 +23,12 @@ _SANDBOX_RECIPIENT = "detector@sandbox.local"
 SANDBOX_DESTINATION = f"{_MAILHOG_HOST}:{_MAILHOG_SMTP_PORT} ({_SANDBOX_RECIPIENT})"
 
 # Keep short headers (From/Subject) on one line instead of folding; Mailhog's JSON view
-# doesn't unfold and would otherwise show a blank From. Return-Path is derived by Mailhog
-# from the SMTP envelope sender, so it is not set as a header here (avoids duplication).
+# doesn't unfold and would otherwise show a blank From.
 _POLICY = email.policy.default.clone(max_line_length=998)
 
 
-def send_to_sandbox(attack: CraftedAttack) -> None:
-    """Send the crafted sample to the Mailhog sandbox over SMTP. No external delivery possible."""
+def build_message(attack: CraftedAttack) -> EmailMessage:
+    """Assemble the EmailMessage that gets delivered (single source of truth for content)."""
     msg = EmailMessage(policy=_POLICY)
     msg["Subject"] = attack.subject
     msg["From"] = f"{attack.from_name} <{attack.from_address}>"
@@ -39,11 +38,35 @@ def send_to_sandbox(attack: CraftedAttack) -> None:
     msg["Received-SPF"] = attack.received_spf
     # Tag it so the blue-team pipeline can attribute the source as red-team.
     msg["X-Redteam-Generated"] = "true"
-
     msg.set_content(attack.body_text)
     if attack.body_html:
         msg.add_alternative(attack.body_html, subtype="html")
+    return msg
 
+
+def header_block(attack: CraftedAttack) -> str:
+    """A raw header block for DB persistence, incl. a synthesized Return-Path.
+
+    Mailhog derives Return-Path from the SMTP envelope sender at delivery time, but the
+    DB copy never goes through SMTP — so we write it explicitly here, giving the blue
+    team's parser the same Return-Path / auth signals it would see in the inbox.
+    """
+    lines = [
+        f"Return-Path: <{attack.envelope_sender}>",
+        f"Authentication-Results: {attack.auth_results}",
+        f"Received-SPF: {attack.received_spf}",
+        f"From: {attack.from_name} <{attack.from_address}>",
+        f"Reply-To: {attack.reply_to}",
+        f"To: {_SANDBOX_RECIPIENT}",
+        f"Subject: {attack.subject}",
+        "X-Redteam-Generated: true",
+    ]
+    return "\n".join(lines)
+
+
+def send_to_sandbox(attack: CraftedAttack) -> None:
+    """Send the crafted sample to the Mailhog sandbox over SMTP. No external delivery possible."""
+    msg = build_message(attack)
     with smtplib.SMTP(_MAILHOG_HOST, _MAILHOG_SMTP_PORT, timeout=10) as smtp:
         # Envelope sender may differ from the header From (Return-Path mismatch tell).
         # Recipient stays hardcoded to the sandbox mailbox.
