@@ -74,6 +74,8 @@ def _record(kind: str, variant: str, difficulty: str | None, a: CraftedAttack, d
 
 def _persist(kind: str, variant: str, brand: str | None, difficulty: str | None, a: CraftedAttack):
     """Best-effort save to Postgres so the blue team can pull the sample. No-ops if DB is down."""
+    # body_text carries the real (malicious) href for every difficulty; raw_headers
+    # includes the synthesized Return-Path. Columns match backend/app/models.py:Email.
     db.save_sample(
         email_row={
             "source": "redteam",
@@ -81,9 +83,7 @@ def _persist(kind: str, variant: str, brand: str | None, difficulty: str | None,
             "subject": a.subject,
             "sender": f"{a.from_name} <{a.from_address}>",
             "reply_to": a.reply_to,
-            "return_path": a.envelope_sender,
             "body_text": a.body_text,
-            "body_html": a.body_html,
         },
         run_row={
             "kind": kind,
