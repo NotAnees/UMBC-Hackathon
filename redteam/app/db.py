@@ -1,15 +1,18 @@
 """Optional Postgres persistence so the blue team can pull generated samples.
 
-Two tables (schema mirrors PLAN.md's data model):
-  emails        - the delivered sample as if it arrived (headers, subject, body).
-                  This is what the blue team pulls and classifies. NO ground truth here,
-                  so their detection stays honest.
-  redteam_runs  - the answer key: label, difficulty, planted tells, linked to the email.
-                  Used only to SCORE the detector afterwards (catch-rate / precision),
-                  never as a detection input.
+Schema alignment: the blue team owns the canonical schema (backend/app/models.py),
+so we match their `emails` table columns exactly and write there. We do NOT touch
+their `redteam_runs` table (its FK is `generated_email_id` and it carries no ground
+truth) — instead the answer key goes in our own `redteam_ground_truth` table, which
+can't collide with their models regardless of which service creates tables first.
+
+  emails                - the delivered sample as if it arrived (blue team pulls this
+                          and classifies). NO ground truth, so detection stays honest.
+  redteam_ground_truth  - red-team-owned answer key (label, difficulty, planted tells),
+                          linked to emails.id, used only to SCORE the detector.
 
 All writes are best-effort: if DATABASE_URL is unset or Postgres is down, generation
-still works and delivery to Mailhog is unaffected — persistence just no-ops.
+and Mailhog delivery are unaffected — persistence just no-ops.
 """
 import json
 import os
@@ -32,34 +35,33 @@ def _get_engine():
     return _engine
 
 
+# `emails` mirrors backend/app/models.py:Email exactly (same columns/types) so whichever
+# service creates it first, both sides agree. `redteam_ground_truth` is ours alone.
 _SCHEMA = [
     """
     CREATE TABLE IF NOT EXISTS emails (
         id           SERIAL PRIMARY KEY,
-        source       TEXT NOT NULL DEFAULT 'redteam',
+        source       VARCHAR(20) NOT NULL DEFAULT 'redteam',
         raw_headers  TEXT,
-        subject      TEXT,
-        sender       TEXT,
-        reply_to     TEXT,
-        return_path  TEXT,
+        subject      VARCHAR(998),
+        sender       VARCHAR(320),
+        reply_to     VARCHAR(320),
         body_text    TEXT,
-        body_html    TEXT,
-        received_at  TIMESTAMPTZ DEFAULT now(),
+        received_at  TIMESTAMPTZ,
         created_at   TIMESTAMPTZ DEFAULT now()
     );
     """,
     """
-    CREATE TABLE IF NOT EXISTS redteam_runs (
-        id              SERIAL PRIMARY KEY,
-        email_id        INTEGER REFERENCES emails(id) ON DELETE CASCADE,
-        kind            TEXT,
-        ground_truth    TEXT,
-        attack_type     TEXT,
-        target_brand    TEXT,
-        difficulty      TEXT,
-        planted_tells   JSONB,
-        detector_caught BOOLEAN,
-        created_at      TIMESTAMPTZ DEFAULT now()
+    CREATE TABLE IF NOT EXISTS redteam_ground_truth (
+        id            SERIAL PRIMARY KEY,
+        email_id      INTEGER REFERENCES emails(id) ON DELETE CASCADE,
+        kind          TEXT,
+        ground_truth  TEXT,
+        attack_type   TEXT,
+        target_brand  TEXT,
+        difficulty    TEXT,
+        planted_tells JSONB,
+        created_at    TIMESTAMPTZ DEFAULT now()
     );
     """,
 ]
@@ -92,7 +94,7 @@ def is_available() -> bool:
 
 
 def save_sample(email_row: dict, run_row: dict) -> int | None:
-    """Insert one email + its ground-truth run row. Returns the email id, or None on failure."""
+    """Insert one email + its ground-truth row. Returns the email id, or None on failure."""
     eng = _get_engine()
     if eng is None:
         return None
@@ -101,10 +103,8 @@ def save_sample(email_row: dict, run_row: dict) -> int | None:
             email_id = conn.execute(
                 text(
                     """
-                    INSERT INTO emails
-                        (source, raw_headers, subject, sender, reply_to, return_path, body_text, body_html)
-                    VALUES
-                        (:source, :raw_headers, :subject, :sender, :reply_to, :return_path, :body_text, :body_html)
+                    INSERT INTO emails (source, raw_headers, subject, sender, reply_to, body_text)
+                    VALUES (:source, :raw_headers, :subject, :sender, :reply_to, :body_text)
                     RETURNING id
                     """
                 ),
@@ -113,7 +113,7 @@ def save_sample(email_row: dict, run_row: dict) -> int | None:
             conn.execute(
                 text(
                     """
-                    INSERT INTO redteam_runs
+                    INSERT INTO redteam_ground_truth
                         (email_id, kind, ground_truth, attack_type, target_brand, difficulty, planted_tells)
                     VALUES
                         (:email_id, :kind, :ground_truth, :attack_type, :target_brand, :difficulty,
