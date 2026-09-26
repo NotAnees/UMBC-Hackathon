@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from app import models  # noqa: F401 - registers models on Base before create_all
 from app.db import Base, engine
+from app.routers import analyze
 
 app = FastAPI(title="AI Phishing Detector API")
 
@@ -13,6 +14,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(analyze.router)
 
 
 @app.on_event("startup")
