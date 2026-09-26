@@ -80,3 +80,81 @@ class AnalyzeResponse(BaseModel):
     typosquat: bool
 
     signals: list[SignalOut]
+
+
+class VerdictSummary(BaseModel):
+    """Row shape for the history list — no findings blobs, so the list stays cheap."""
+
+    verdict_id: int
+    email_id: int
+    source: str
+    subject: str | None = None
+    sender: str | None = None
+    heuristic_score: float | None = None
+    heuristic_label: str | None = None
+    risk_score: float | None = None
+    risk_label: str | None = None
+    llm_verdict: str | None = None
+    created_at: datetime
+
+
+class VerdictList(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[VerdictSummary]
+
+
+class FeedbackOut(BaseModel):
+    id: int
+    verdict_id: int
+    marked_by: str | None = None
+    is_correct: bool
+    note: str | None = None
+    created_at: datetime
+
+
+class VerdictDetail(VerdictSummary):
+    reply_to: str | None = None
+    received_at: datetime | None = None
+    raw_headers: str | None = None
+    body_text: str | None = None
+    body_html: str | None = None
+
+    heuristic_findings: dict | None = None
+    risk_components: dict | None = None
+    domain_age_days: int | None = None
+    link_mismatch: bool | None = None
+    unfamiliar_link: bool | None = None
+    typosquat: bool | None = None
+
+    llm_confidence: float | None = None
+    llm_rationale: str | None = None
+    llm_risky_spans: list[RiskySpanOut] = []
+
+    feedback: list[FeedbackOut] = []
+
+
+class FeedbackRequest(BaseModel):
+    is_correct: bool = Field(description="Was the stored verdict correct?")
+    marked_by: str | None = Field(default=None, max_length=120)
+    note: str | None = None
+
+
+class MailboxMessage(BaseModel):
+    external_id: str
+    subject: str | None = None
+    sender: str | None = None
+    status: Literal["analyzed", "already_analyzed", "unparseable"]
+    verdict_id: int | None = None
+    risk_score: float | None = None
+    risk_label: str | None = None
+
+
+class MailboxPollResponse(BaseModel):
+    fetched: int
+    analyzed: int
+    already_analyzed: int
+    unparseable: int
+    used_llm: bool
+    messages: list[MailboxMessage]

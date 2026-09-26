@@ -12,6 +12,8 @@ class Email(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str] = mapped_column(String(20))  # paste | upload | mailhog | redteam
+    # Upstream id (e.g. a Mailhog message ID) so repeated polling stays idempotent.
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     raw_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
     subject: Mapped[str | None] = mapped_column(String(998), nullable=True)
     sender: Mapped[str | None] = mapped_column(String(320), nullable=True)

@@ -42,6 +42,7 @@ _SCHEMA = [
     CREATE TABLE IF NOT EXISTS emails (
         id           SERIAL PRIMARY KEY,
         source       VARCHAR(20) NOT NULL DEFAULT 'redteam',
+        external_id  VARCHAR(255),
         raw_headers  TEXT,
         subject      VARCHAR(998),
         sender       VARCHAR(320),
