@@ -69,6 +69,7 @@ COMMON_TLDS = {
 }
 
 _URL_IN_TEXT_RE = re.compile(r"https?://[^\s\]\)>\"']+", re.IGNORECASE)
+_TEXT_URL_RE = re.compile(r"(?:https?://|www\.)[^\s<>\"'\]\),]+", re.IGNORECASE)
 _BARE_DOMAIN_RE = re.compile(
     r"\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})\b", re.IGNORECASE
 )
@@ -122,6 +123,32 @@ def extract_links(body_html: str) -> list[tuple[str, str]]:
     return parser.links()
 
 
+def extract_text_urls(body_text: str) -> list[tuple[str, str]]:
+    """URLs written directly in a plain-text body, as ("", url) pairs. There is no
+    visible anchor text to disagree with the target, so the empty string makes the
+    text-vs-href check skip them instead of needing a special case."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    for match in _TEXT_URL_RE.finditer(body_text or ""):
+        url = match.group(0).rstrip(".,;:!?'\")")
+        if url.lower() not in seen:
+            seen.add(url.lower())
+            found.append(("", url))
+    return found
+
+
+def collect_links(body_html: str | None, body_text: str | None = None) -> list[tuple[str, str]]:
+    """Every link worth analysing. Anchors win when the HTML has them, because
+    plain text derived from HTML repeats anchor *text* — treating a spoofed
+    'paypal.com/login' label as a real destination would mask the spoof.
+    """
+    anchors = extract_links(body_html or "")
+    if anchors:
+        return anchors
+    return extract_text_urls(body_text or "")
+
+
 def registrable_domain(host: str) -> str:
     """Approximate eTLD+1 so 'www.paypal.com' and 'paypal.com' compare equal."""
     parts = (host or "").lower().strip(".").split(".")
@@ -166,14 +193,16 @@ def anchor_text_host(anchor_text: str) -> str | None:
     return None
 
 
-def check_link_mismatch(body_html: str) -> tuple[bool, list[LinkFinding]]:
+def check_link_mismatch(
+    body_html: str, body_text: str | None = None
+) -> tuple[bool, list[LinkFinding]]:
     """Flags anchors whose visible text names one domain while the href points
     elsewhere, plus raw-IP hrefs, punycode/homograph domains, and known shorteners.
     Returns (triggered, findings).
     """
     findings: list[LinkFinding] = []
 
-    for anchor_text, href in extract_links(body_html):
+    for anchor_text, href in collect_links(body_html, body_text):
         host = href_host(href)
         if not host:
             continue
@@ -210,10 +239,10 @@ def check_link_mismatch(body_html: str) -> tuple[bool, list[LinkFinding]]:
     return (len(findings) > 0, findings)
 
 
-def link_hosts(body_html: str) -> list[str]:
+def link_hosts(body_html: str, body_text: str | None = None) -> list[str]:
     """Every distinct hostname the body actually links to."""
     hosts: list[str] = []
-    for _, href in extract_links(body_html):
+    for _, href in collect_links(body_html, body_text):
         host = href_host(href)
         if host and host not in hosts:
             hosts.append(host)
@@ -305,6 +334,7 @@ def check_typosquat(
 def check_unfamiliar_links(
     body_html: str,
     *,
+    body_text: str | None = None,
     sender_domain: str | None = None,
     known_domains: set[str] | None = None,
 ) -> tuple[bool, list[LinkFinding]]:
@@ -327,7 +357,7 @@ def check_unfamiliar_links(
     findings: list[LinkFinding] = []
     reported: set[str] = set()
 
-    for anchor_text, href in extract_links(body_html):
+    for anchor_text, href in collect_links(body_html, body_text):
         host = href_host(href)
         if not host or _IP_HOST_RE.match(host):
             continue

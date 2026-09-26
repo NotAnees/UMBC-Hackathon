@@ -147,11 +147,11 @@ def run_heuristics(
     html = body_html or ""
     sender_domain = address_domain(sender)
 
-    link_triggered, link_findings = check_link_mismatch(html)
+    link_triggered, link_findings = check_link_mismatch(html, body_text)
     unfamiliar_triggered, unfamiliar_findings = check_unfamiliar_links(
-        html, sender_domain=sender_domain, known_domains=known_domains
+        html, body_text=body_text, sender_domain=sender_domain, known_domains=known_domains
     )
-    typo_candidates = [d for d in [sender_domain, *link_hosts(html)] if d]
+    typo_candidates = [d for d in [sender_domain, *link_hosts(html, body_text)] if d]
     typo_triggered, typo_reasons = check_typosquat(typo_candidates, brand_domains=brand_domains)
 
     auth_signals = _auth_signals(auth_results)

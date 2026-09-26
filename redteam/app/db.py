@@ -47,6 +47,7 @@ _SCHEMA = [
         sender       VARCHAR(320),
         reply_to     VARCHAR(320),
         body_text    TEXT,
+        body_html    TEXT,
         received_at  TIMESTAMPTZ,
         created_at   TIMESTAMPTZ DEFAULT now()
     );
@@ -103,8 +104,8 @@ def save_sample(email_row: dict, run_row: dict) -> int | None:
             email_id = conn.execute(
                 text(
                     """
-                    INSERT INTO emails (source, raw_headers, subject, sender, reply_to, body_text)
-                    VALUES (:source, :raw_headers, :subject, :sender, :reply_to, :body_text)
+                    INSERT INTO emails (source, raw_headers, subject, sender, reply_to, body_text, body_html)
+                    VALUES (:source, :raw_headers, :subject, :sender, :reply_to, :body_text, :body_html)
                     RETURNING id
                     """
                 ),
