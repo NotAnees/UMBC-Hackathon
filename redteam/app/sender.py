@@ -10,10 +10,16 @@ SPF/DKIM/DMARC results). Those tells exist so the blue-team Layer-1 heuristics h
 genuine signals to detect — without them, a synthetic email only exercises the LLM
 pass. They are entirely synthetic and never leave the sandbox.
 """
+import email.policy
 import smtplib
 from email.message import EmailMessage
 
 from .schemas import GeneratedEmail
+
+# Keep headers on single lines (up to the RFC 5322 hard limit) instead of folding short
+# ones like From/Subject across continuation lines. Folding is valid, but Mailhog's JSON
+# view doesn't unfold it and shows a blank From — this keeps the demo inbox readable.
+_POLICY = email.policy.default.clone(max_line_length=998)
 
 # Hardcoded sandbox destination. Do NOT make these configurable — see module docstring.
 _MAILHOG_HOST = "mailhog"
@@ -58,29 +64,30 @@ def _build_headers(from_address: str) -> dict[str, str]:
         f"designate 203.0.113.13 as permitted sender)"
     )
 
+    # Note: Return-Path is NOT set here. It is derived by the receiving MTA (Mailhog)
+    # from the SMTP envelope sender we pass at send time, which avoids a duplicated header.
     return {
         "Reply-To": reply_to,
-        "Return-Path": f"<{envelope_sender}>",
         "Authentication-Results": auth_results,
         "Received-SPF": received_spf,
         "_envelope_sender": envelope_sender,  # consumed by the caller, not a real header
     }
 
 
-def send_to_sandbox(email: GeneratedEmail) -> None:
+def send_to_sandbox(sample: GeneratedEmail) -> None:
     """Send the generated sample to the Mailhog sandbox over SMTP. No external delivery possible."""
-    headers = _build_headers(email.from_address)
+    headers = _build_headers(sample.from_address)
     envelope_sender = headers.pop("_envelope_sender")
 
-    msg = EmailMessage()
-    msg["Subject"] = email.subject
-    msg["From"] = f"{email.from_name} <{email.from_address}>"
+    msg = EmailMessage(policy=_POLICY)
+    msg["Subject"] = sample.subject
+    msg["From"] = f"{sample.from_name} <{sample.from_address}>"
     msg["To"] = _SANDBOX_RECIPIENT
     for name, value in headers.items():
         msg[name] = value
     # Tag it so the blue-team pipeline can attribute the source as red-team.
     msg["X-Redteam-Generated"] = "true"
-    msg.set_content(email.body)
+    msg.set_content(sample.body)
 
     with smtplib.SMTP(_MAILHOG_HOST, _MAILHOG_SMTP_PORT, timeout=10) as smtp:
         # Envelope sender differs from the header From on purpose (Return-Path mismatch).
