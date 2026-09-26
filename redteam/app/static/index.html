@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Red-Team Console</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a23; --panel-2: #1e222d; --border: #2a2f3c;
+    --text: #e6e8ee; --muted: #9aa3b2; --accent: #ff5c5c; --accent-2: #ffb020;
+    --ok: #35c98a; --link: #6ea8ff; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;
+  }
+  header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #3a1414;
+         color: var(--accent); border: 1px solid #5a1f1f; text-transform: uppercase; letter-spacing: .5px; }
+  .safe { background: #10241b; color: var(--ok); border-color: #1c3b2d; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+             margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  select, input[type=text] {
+    width: 100%; padding: 10px 12px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 14px; margin-bottom: 14px;
+  }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .row input { width: auto; margin: 0; }
+  .row label { margin: 0; color: var(--text); }
+  button {
+    width: 100%; padding: 12px; border: 0; border-radius: 8px; font-size: 15px; font-weight: 600;
+    color: #1a0d0d; background: linear-gradient(180deg, #ff7a7a, var(--accent)); cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .result { display: none; }
+  .result.show { display: block; }
+  .kv { display: grid; grid-template-columns: 92px 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv div:nth-child(odd) { color: var(--muted); }
+  .mono { font-family: var(--mono); word-break: break-all; }
+  pre {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; white-space: pre-wrap; word-break: break-word; font-family: var(--mono);
+    font-size: 13px; margin: 12px 0 0; max-height: 320px; overflow: auto;
+  }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+  .badge.ok { background: #10241b; color: var(--ok); }
+  .badge.off { background: #2a2f3c; color: var(--muted); }
+  .tells { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tells span { display: inline-block; background: #2a1a1a; color: #ffb0b0; border: 1px solid #4a2626;
+                padding: 2px 8px; border-radius: 6px; margin: 0 6px 6px 0; }
+  a { color: var(--link); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 24px 28px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎯 Red-Team Console</h1>
+  <span class="tag">offensive</span>
+  <span class="tag safe" id="sandbox">sandbox only</span>
+</header>
+
+<main>
+  <div class="grid">
+    <div class="card">
+      <h2>Generate synthetic attack</h2>
+      <label for="attack">Attack type</label>
+      <select id="attack">
+        <option value="credential_harvest">Credential harvest</option>
+        <option value="bec_urgency">BEC / urgency</option>
+        <option value="brand_impersonation">Brand impersonation</option>
+        <option value="generic">Generic</option>
+      </select>
+
+      <label for="brand">Target brand / role <span class="muted">(optional, generic only)</span></label>
+      <input type="text" id="brand" placeholder="e.g. PayPal, IT Helpdesk" />
+
+      <div class="row">
+        <input type="checkbox" id="send" checked />
+        <label for="send">Deliver to Mailhog sandbox</label>
+      </div>
+
+      <button id="go">Generate Attack</button>
+      <p class="muted" style="margin-bottom:0">Delivery target is hardcoded to the Mailhog
+        container — there is no path to a real inbox.</p>
+    </div>
+
+    <div class="card result" id="resultCard">
+      <h2>Generated sample</h2>
+      <div class="kv">
+        <div>Delivery</div><div id="r-delivery"></div>
+        <div>To</div><div class="mono" id="r-dest"></div>
+        <div>From</div><div class="mono" id="r-from"></div>
+        <div>Subject</div><div id="r-subject"></div>
+      </div>
+      <div class="tells">
+        Header tells stamped on delivery:
+        <div style="margin-top:6px">
+          <span>From/Reply-To mismatch</span><span>Return-Path mismatch</span>
+          <span>SPF fail</span><span>DKIM fail</span><span>DMARC fail</span>
+        </div>
+      </div>
+      <pre id="r-body"></pre>
+      <p class="muted" style="margin-top:12px">
+        View it in the inbox → <a href="http://localhost:8025" target="_blank">Mailhog UI (:8025)</a>
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer>Red-team service · synthetic samples for testing our own detector · nothing leaves the sandbox</footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // Show the hardcoded sandbox destination from the service.
+  fetch('/health').then(r => r.json()).then(d => {
+    if (d.sandbox_destination) $('sandbox').textContent = 'sandbox: ' + d.sandbox_destination;
+  }).catch(() => {});
+
+  $('go').addEventListener('click', async () => {
+    const btn = $('go');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    try {
+      const payload = {
+        attack_type: $('attack').value,
+        target_brand: $('brand').value.trim() || null,
+        send: $('send').checked,
+      };
+      const res = await fetch('/redteam/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      $('r-delivery').innerHTML = data.delivered_to_sandbox
+        ? '<span class="badge ok">delivered</span>'
+        : '<span class="badge off">not sent (preview only)</span>';
+      $('r-dest').textContent = data.sandbox_destination;
+      $('r-from').textContent = data.email.from_name + ' <' + data.email.from_address + '>';
+      $('r-subject').textContent = data.email.subject;
+      $('r-body').textContent = data.email.body;
+      $('resultCard').classList.add('show');
+    } catch (e) {
+      alert('Generation failed: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Generate Attack';
+    }
+  });
+</script>
+</body>
+</html>

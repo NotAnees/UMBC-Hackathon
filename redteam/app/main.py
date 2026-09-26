@@ -1,14 +1,20 @@
 """Red-team FastAPI service.
 
 Self-contained sibling to the blue-team `api` service. Generates synthetic phishing
-samples with Gemini and delivers them ONLY into the local Mailhog sandbox, where the
-blue-team detector picks them up through its normal pipeline. Runs on port 8001.
+samples from an in-house template bank (see samples.py) and delivers them ONLY into
+the local Mailhog sandbox, where the blue-team detector picks them up through its
+normal pipeline. Also serves a lightweight red-team console UI at `/`. Runs on port 8001.
 """
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from . import generator, sender
 from .schemas import GenerateRequest, GenerateResponse
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="Phishing Red-Team Service", version="0.1.0")
 
@@ -19,6 +25,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+def console():
+    """Serve the red-team console UI (same-origin, so no CORS needed for its calls)."""
+    return FileResponse(_STATIC_DIR / "index.html")
 
 
 @app.get("/health")
