@@ -22,6 +22,15 @@ class Difficulty(str, Enum):
     hard = "hard"
 
 
+class BenignCategory(str, Enum):
+    """Legitimate-but-phishy email types used to test the detector's false-positive rate."""
+
+    marketing_promo = "marketing_promo"
+    account_notification = "account_notification"
+    password_reset_requested = "password_reset_requested"
+    shipping_update = "shipping_update"
+
+
 class GenerateRequest(BaseModel):
     attack_type: AttackType = AttackType.credential_harvest
     difficulty: Difficulty = Difficulty.easy
@@ -42,10 +51,31 @@ class GenerateResponse(BaseModel):
     attack_type: AttackType
     difficulty: Difficulty
     target_brand: Optional[str]
+    # Ground-truth label so phishing and benign samples can be scored together.
+    ground_truth: str = "phishing"
     email: GeneratedEmail
     # Ground truth: the tells we deliberately planted, so the detector's hits/misses
     # can be measured signal-by-signal later.
     planted_tells: list[str]
     delivered_to_sandbox: bool
     # Static, non-configurable sandbox destination — surfaced so the UI can prove containment.
+    sandbox_destination: str
+
+
+class BenignRequest(BaseModel):
+    category: BenignCategory = BenignCategory.marketing_promo
+    target_brand: Optional[str] = Field(default=None, max_length=80)
+    send: bool = True
+
+
+class BenignResponse(BaseModel):
+    category: BenignCategory
+    target_brand: Optional[str]
+    ground_truth: str = "legitimate"
+    email: GeneratedEmail
+    # Surface features that could fool a naive detector into a false positive...
+    surface_traps: list[str]
+    # ...but these clean signals are why it is actually legitimate.
+    clean_signals: list[str]
+    delivered_to_sandbox: bool
     sandbox_destination: str

@@ -30,6 +30,9 @@ class CraftedAttack:
     body_text: str
     body_html: str | None = None
     planted_tells: list[str] = field(default_factory=list)
+    # For benign samples: the clean signals that make it actually legitimate.
+    clean_signals: list[str] = field(default_factory=list)
+    ground_truth: str = "phishing"
 
 
 # --- domain crafting -------------------------------------------------------

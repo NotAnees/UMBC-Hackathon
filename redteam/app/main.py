@@ -12,7 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import generator, sender
-from .schemas import GeneratedEmail, GenerateRequest, GenerateResponse
+from .schemas import (
+    BenignRequest,
+    BenignResponse,
+    GeneratedEmail,
+    GenerateRequest,
+    GenerateResponse,
+)
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -52,6 +58,7 @@ def generate(req: GenerateRequest):
         attack_type=req.attack_type,
         difficulty=req.difficulty,
         target_brand=req.target_brand,
+        ground_truth=attack.ground_truth,
         email=GeneratedEmail(
             subject=attack.subject,
             body=attack.body_text,
@@ -59,6 +66,32 @@ def generate(req: GenerateRequest):
             from_address=attack.from_address,
         ),
         planted_tells=attack.planted_tells,
+        delivered_to_sandbox=delivered,
+        sandbox_destination=sender.SANDBOX_DESTINATION,
+    )
+
+
+@app.post("/redteam/generate-benign", response_model=BenignResponse)
+def generate_benign(req: BenignRequest):
+    """Generate a legitimate-but-phishy sample to test the detector's false-positive rate."""
+    sample = generator.generate_benign(req.category, req.target_brand)
+
+    delivered = False
+    if req.send:
+        sender.send_to_sandbox(sample)
+        delivered = True
+
+    return BenignResponse(
+        category=req.category,
+        target_brand=req.target_brand,
+        email=GeneratedEmail(
+            subject=sample.subject,
+            body=sample.body_text,
+            from_name=sample.from_name,
+            from_address=sample.from_address,
+        ),
+        surface_traps=sample.planted_tells,
+        clean_signals=sample.clean_signals,
         delivered_to_sandbox=delivered,
         sandbox_destination=sender.SANDBOX_DESTINATION,
     )
