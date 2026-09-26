@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import generator, sender
-from .schemas import GenerateRequest, GenerateResponse
+from .schemas import GeneratedEmail, GenerateRequest, GenerateResponse
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -41,17 +41,24 @@ def health():
 @app.post("/redteam/generate", response_model=GenerateResponse)
 def generate(req: GenerateRequest):
     """Generate a synthetic phishing sample and (optionally) deliver it to the sandbox."""
-    email = generator.generate_email(req.attack_type, req.target_brand)
+    attack = generator.generate_email(req.attack_type, req.target_brand, req.difficulty)
 
     delivered = False
     if req.send:
-        sender.send_to_sandbox(email)
+        sender.send_to_sandbox(attack)
         delivered = True
 
     return GenerateResponse(
         attack_type=req.attack_type,
+        difficulty=req.difficulty,
         target_brand=req.target_brand,
-        email=email,
+        email=GeneratedEmail(
+            subject=attack.subject,
+            body=attack.body_text,
+            from_name=attack.from_name,
+            from_address=attack.from_address,
+        ),
+        planted_tells=attack.planted_tells,
         delivered_to_sandbox=delivered,
         sandbox_destination=sender.SANDBOX_DESTINATION,
     )

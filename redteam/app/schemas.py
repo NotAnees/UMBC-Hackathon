@@ -14,8 +14,17 @@ class AttackType(str, Enum):
     generic = "generic"
 
 
+class Difficulty(str, Enum):
+    """Difficulty *for the detector*: easy = loud/obvious, hard = stealthy/header-clean."""
+
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
+
+
 class GenerateRequest(BaseModel):
     attack_type: AttackType = AttackType.credential_harvest
+    difficulty: Difficulty = Difficulty.easy
     # A generic brand/role for realism (e.g. "IT Helpdesk"). Never a real person or org contact.
     target_brand: Optional[str] = Field(default=None, max_length=80)
     # If false, the email is generated but NOT delivered to the Mailhog sandbox.
@@ -31,8 +40,12 @@ class GeneratedEmail(BaseModel):
 
 class GenerateResponse(BaseModel):
     attack_type: AttackType
+    difficulty: Difficulty
     target_brand: Optional[str]
     email: GeneratedEmail
+    # Ground truth: the tells we deliberately planted, so the detector's hits/misses
+    # can be measured signal-by-signal later.
+    planted_tells: list[str]
     delivered_to_sandbox: bool
     # Static, non-configurable sandbox destination — surfaced so the UI can prove containment.
     sandbox_destination: str

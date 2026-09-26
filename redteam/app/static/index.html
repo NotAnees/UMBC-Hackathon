@@ -82,7 +82,14 @@
         <option value="generic">Generic</option>
       </select>
 
-      <label for="brand">Target brand / role <span class="muted">(optional, generic only)</span></label>
+      <label for="difficulty">Detection difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy — loud &amp; obvious (many tells)</option>
+        <option value="medium">Medium — typosquat, softfail, shortener</option>
+        <option value="hard">Hard — homoglyph, auth passes, anchor mismatch</option>
+      </select>
+
+      <label for="brand">Target brand / role <span class="muted">(optional)</span></label>
       <input type="text" id="brand" placeholder="e.g. PayPal, IT Helpdesk" />
 
       <div class="row">
@@ -99,16 +106,14 @@
       <h2>Generated sample</h2>
       <div class="kv">
         <div>Delivery</div><div id="r-delivery"></div>
+        <div>Difficulty</div><div id="r-difficulty"></div>
         <div>To</div><div class="mono" id="r-dest"></div>
         <div>From</div><div class="mono" id="r-from"></div>
         <div>Subject</div><div id="r-subject"></div>
       </div>
       <div class="tells">
-        Header tells stamped on delivery:
-        <div style="margin-top:6px">
-          <span>From/Reply-To mismatch</span><span>Return-Path mismatch</span>
-          <span>SPF fail</span><span>DKIM fail</span><span>DMARC fail</span>
-        </div>
+        Ground-truth tells planted (<span id="r-tell-count"></span>) — what the detector should catch:
+        <div id="r-tells" style="margin-top:6px"></div>
       </div>
       <pre id="r-body"></pre>
       <p class="muted" style="margin-top:12px">
@@ -134,6 +139,7 @@
     try {
       const payload = {
         attack_type: $('attack').value,
+        difficulty: $('difficulty').value,
         target_brand: $('brand').value.trim() || null,
         send: $('send').checked,
       };
@@ -147,10 +153,14 @@
       $('r-delivery').innerHTML = data.delivered_to_sandbox
         ? '<span class="badge ok">delivered</span>'
         : '<span class="badge off">not sent (preview only)</span>';
+      $('r-difficulty').textContent = data.difficulty;
       $('r-dest').textContent = data.sandbox_destination;
       $('r-from').textContent = data.email.from_name + ' <' + data.email.from_address + '>';
       $('r-subject').textContent = data.email.subject;
       $('r-body').textContent = data.email.body;
+      const tells = data.planted_tells || [];
+      $('r-tell-count').textContent = tells.length;
+      $('r-tells').innerHTML = tells.map(t => '<span>' + t + '</span>').join('');
       $('resultCard').classList.add('show');
     } catch (e) {
       alert('Generation failed: ' + e.message);
