@@ -1,0 +1,6 @@
+# Deps for the local Gmail seeder (gmail_insert.py). Run on the HOST, not in the container.
+# Install into a venv:  pip install -r redteam/requirements-gmail.txt
+google-api-python-client==2.149.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+pydantic==2.10.4
