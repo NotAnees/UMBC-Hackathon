@@ -1,0 +1,2 @@
+-- Intentionally empty: tables are created by SQLAlchemy's create_all() on API startup.
+-- Kept as a mount point in case we need one-time DB setup (extensions, etc.) later.
