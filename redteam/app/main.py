@@ -35,6 +35,7 @@ from .schemas import (
     GenerateRequest,
     GenerateResponse,
     InboxResponse,
+    ScorecardResponse,
     StatsResponse,
 )
 
@@ -219,6 +220,47 @@ def batch(req: BatchRequest):
 def get_inbox(limit: int = 50):
     """Read-only view of the Mailhog sandbox (proxied server-side to avoid CORS)."""
     return InboxResponse(**inbox.fetch_inbox(limit))
+
+
+def _flagged(verdict: str | None) -> bool:
+    """The detector 'caught' something if it called it anything other than legitimate."""
+    return (verdict or "").lower() in ("phishing", "suspicious")
+
+
+@app.get("/redteam/scorecard", response_model=ScorecardResponse)
+def get_scorecard():
+    """Catch-rate + false-positive rate, scoring our ground truth against blue-team verdicts."""
+    data = db.scorecard_data() or {"total_ground_truth": 0, "rows": []}
+    rows = data["rows"]
+
+    phishing = [r for r in rows if r["truth"] == "phishing"]
+    benign = [r for r in rows if r["truth"] == "legitimate"]
+    caught = [r for r in phishing if _flagged(r["verdict"])]
+    fps = [r for r in benign if _flagged(r["verdict"])]
+
+    by_diff: dict[str, dict] = {}
+    for d in ("easy", "medium", "hard"):
+        grp = [r for r in phishing if r["difficulty"] == d]
+        got = [r for r in grp if _flagged(r["verdict"])]
+        if grp:
+            by_diff[d] = {
+                "total": len(grp),
+                "caught": len(got),
+                "catch_rate": round(len(got) / len(grp) * 100, 1),
+            }
+
+    return ScorecardResponse(
+        scored=len(rows),
+        pending=max(0, data["total_ground_truth"] - len(rows)),
+        phishing_total=len(phishing),
+        benign_total=len(benign),
+        caught=len(caught),
+        missed=len(phishing) - len(caught),
+        catch_rate=round(len(caught) / len(phishing) * 100, 1) if phishing else 0.0,
+        false_positives=len(fps),
+        fp_rate=round(len(fps) / len(benign) * 100, 1) if benign else 0.0,
+        by_difficulty=by_diff,
+    )
 
 
 @app.get("/redteam/stats", response_model=StatsResponse)

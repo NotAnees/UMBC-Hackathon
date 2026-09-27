@@ -12,18 +12,15 @@ from app.detection.url_analysis import collect_links
 
 logger = logging.getLogger(__name__)
 
-# Checked against the live models.list() rather than assumed: gemini-2.5-flash now
-# returns 404 for new API keys. Override the primary with GEMINI_MODEL.
-DEFAULT_MODEL = "gemini-3.8-flash"
-# The primary answers 503 "experiencing high demand" often enough to drop verdicts
-# mid-demo, so an overloaded model falls through to the next one. These must be
-# genuinely distinct models: free-tier quota is per model, and the `-latest` aliases
-# resolve to the primary, so they share its quota and never help.
-FALLBACK_MODELS = ("gemini-3.5-flash", "gemini-3.5-flash-lite")
+# This runs on every analyzed email, so we default to Haiku 4.5 — Anthropic's cheapest,
+# fastest model and well-suited to classification. Override with ANTHROPIC_MODEL
+# (e.g. claude-sonnet-5 for stronger BEC judgment). The Anthropic SDK auto-retries
+# 429/5xx with backoff, so no manual fallback-model list is needed.
+DEFAULT_MODEL = "claude-haiku-4-5"
 MAX_BODY_CHARS = 4000
 MAX_LINKS = 15
-REQUEST_TIMEOUT_MS = 30_000
-RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+REQUEST_TIMEOUT_S = 30
+MAX_OUTPUT_TOKENS = 2048
 
 SYSTEM_INSTRUCTION = """You are an email security analyst classifying a message as \
 phishing, suspicious, or legitimate.
@@ -85,7 +82,7 @@ def llm_risk_subscore(verdict: str, confidence: int) -> float:
 
 
 def is_configured() -> bool:
-    return bool(os.environ.get("GEMINI_API_KEY"))
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
 def _prompt(
@@ -141,61 +138,53 @@ def run_llm_pass(
     body_html: str | None = None,
     heuristics: HeuristicResult | None = None,
 ) -> LlmResult | None:
-    """Gemini semantic pass. Returns None when unavailable — no key, network trouble,
-    or an unusable response — so the deterministic layers stay authoritative and the
-    risk score renormalizes instead of scoring the message as safe by default.
+    """Claude semantic pass. Returns None when unavailable — no key, network trouble,
+    a refusal, or an unusable response — so the deterministic layers stay authoritative
+    and the risk score renormalizes instead of scoring the message as safe by default.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
         return None
 
     try:
-        from google import genai
-        from google.genai import types
+        import anthropic
 
-        client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(
-                timeout=REQUEST_TIMEOUT_MS,
-                retry_options=types.HttpRetryOptions(
-                    attempts=3, initial_delay=1.0, http_status_codes=RETRY_STATUS_CODES
-                ),
-            ),
-        )
-        contents = _prompt(
-            subject=subject,
-            sender=sender,
-            reply_to=reply_to,
-            auth_results=auth_results,
-            body_text=body_text,
-            body_html=body_html,
-            heuristics=heuristics,
-        )
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            response_mime_type="application/json",
-            response_schema=LlmVerdict,
-            temperature=0.0,
-        )
+        # ANTHROPIC_API_KEY is read from the environment by the client automatically.
+        client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT_S)
     except Exception:
-        logger.warning("Gemini client setup failed; scoring without it", exc_info=True)
+        logger.warning("Anthropic client setup failed; scoring without it", exc_info=True)
         return None
 
-    primary = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
-    parsed = None
-    for model in (primary, *(m for m in FALLBACK_MODELS if m != primary)):
-        try:
-            parsed = client.models.generate_content(
-                model=model, contents=contents, config=config
-            ).parsed
-            break
-        except Exception as exc:
-            # Degrading silently here once cost real debugging time: the verdict
-            # arrived with no LLM fields and no clue why.
-            logger.warning("Gemini model %s failed (%s); trying next", model, exc)
+    prompt = _prompt(
+        subject=subject,
+        sender=sender,
+        reply_to=reply_to,
+        auth_results=auth_results,
+        body_text=body_text,
+        body_html=body_html,
+        heuristics=heuristics,
+    )
+    model = os.environ.get("ANTHROPIC_MODEL", DEFAULT_MODEL)
+
+    try:
+        # messages.parse validates the response against LlmVerdict and returns a typed
+        # instance on .parsed_output (None on a refusal or unparseable output).
+        response = client.messages.parse(
+            model=model,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            temperature=0,
+            system=SYSTEM_INSTRUCTION,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=LlmVerdict,
+        )
+        parsed = response.parsed_output
+    except Exception as exc:
+        # Degrading silently here once cost real debugging time: the verdict arrived
+        # with no LLM fields and no clue why — so log the reason.
+        logger.warning("Claude model %s failed (%s); scoring without the semantic pass", model, exc)
+        return None
 
     if not isinstance(parsed, LlmVerdict):
-        logger.warning("No usable Gemini verdict; scoring without the semantic pass")
+        logger.warning("No usable Claude verdict (refusal or unparseable); scoring without it")
         return None
 
     return LlmResult(

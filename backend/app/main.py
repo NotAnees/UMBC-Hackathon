@@ -1,10 +1,15 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from app import models  # noqa: F401 - registers models on Base before create_all
 from app.db import Base, engine
 from app.routers import analyze, feedback, history, mailbox
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="AI Phishing Detector API")
 
@@ -25,6 +30,12 @@ app.include_router(feedback.router)
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+
+
+@app.get("/", include_in_schema=False)
+def dashboard():
+    """Serve the blue-team dashboard (same-origin, so its API calls need no CORS)."""
+    return FileResponse(_STATIC_DIR / "index.html")
 
 
 @app.get("/health")

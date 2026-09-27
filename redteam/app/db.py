@@ -78,6 +78,34 @@ def is_available() -> bool:
         return False
 
 
+def scorecard_data() -> dict | None:
+    """Join our ground truth to the blue team's verdicts (via the X-Redteam-Id header
+    the poller stores in emails.raw_headers) so we can score the detector. Never raises.
+    """
+    eng = _get_engine()
+    if eng is None:
+        return None
+    try:
+        with eng.connect() as conn:
+            total = conn.execute(text("SELECT count(*) FROM redteam_ground_truth")).scalar_one()
+            rows = conn.execute(
+                text(
+                    """
+                    SELECT g.ground_truth AS truth,
+                           g.difficulty   AS difficulty,
+                           COALESCE(v.final_label, v.risk_label) AS verdict
+                    FROM redteam_ground_truth g
+                    JOIN emails e
+                      ON substring(e.raw_headers from 'X-Redteam-Id: ([0-9a-f]+)') = g.redteam_id
+                    JOIN verdicts v ON v.email_id = e.id
+                    """
+                )
+            ).mappings().all()
+        return {"total_ground_truth": int(total), "rows": [dict(r) for r in rows]}
+    except Exception:
+        return None
+
+
 def save_ground_truth(redteam_id: str, run_row: dict) -> bool:
     """Record the answer key for one sample, keyed by its redteam_id. Never raises."""
     eng = _get_engine()
