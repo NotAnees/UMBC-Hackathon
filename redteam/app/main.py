@@ -16,11 +16,11 @@ import random
 from collections import Counter
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import db, generator, inbox, sender, store
+from . import db, gmail_delivery, generator, inbox, sender, store
 from .crafting import CraftedAttack
 from .schemas import (
     AttackType,
@@ -36,6 +36,9 @@ from .schemas import (
     GenerateResponse,
     InboxResponse,
     ScorecardResponse,
+    SeedGmailItem,
+    SeedGmailRequest,
+    SeedGmailResponse,
     StatsResponse,
 )
 
@@ -114,6 +117,7 @@ def health():
         "status": "ok",
         "sandbox_destination": sender.SANDBOX_DESTINATION,
         "db_available": db.is_available(),
+        "gmail_insert_available": gmail_delivery.is_configured(),
     }
 
 
@@ -210,6 +214,55 @@ def batch(req: BatchRequest):
     counts = Counter(i.label for i in items)
     return BatchResponse(
         total=len(items), delivered=delivered_count, counts=dict(counts), items=items
+    )
+
+
+@app.post("/redteam/seed-gmail", response_model=SeedGmailResponse)
+def seed_gmail(req: SeedGmailRequest):
+    """Insert synthetic samples into the operator's OWN Gmail inbox for a live demo.
+
+    SELF-ONLY: delivery goes through gmail_delivery.insert_raw, which hardcodes
+    userId="me" and has no recipient parameter — it cannot reach any other mailbox.
+    """
+    if not gmail_delivery.is_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="Gmail insert not configured: run `python redteam/gmail_insert.py --auth` "
+            "on the host to create secrets/token.json.",
+        )
+
+    rng = random.Random()
+    items: list[SeedGmailItem] = []
+    for _ in range(req.count):
+        if rng.random() < req.benign_ratio:
+            category = rng.choice(list(BenignCategory))
+            attack = generator.generate_benign(category, None)
+            variant, difficulty = category.value, None
+        else:
+            atype = rng.choice(list(AttackType))
+            diff = rng.choice(list(Difficulty))
+            attack = generator.generate_email(atype, None, diff)
+            variant, difficulty = atype.value, diff.value
+
+        msg = sender.build_message(attack)
+        del msg["To"]
+        msg["To"] = "me"  # cosmetic only; the insert has no real recipient
+        try:
+            mid = gmail_delivery.insert_raw(msg.as_bytes())
+        except gmail_delivery.GmailInsertUnavailable as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        items.append(
+            SeedGmailItem(
+                label=attack.ground_truth, variant=variant, difficulty=difficulty,
+                from_address=attack.from_address, subject=attack.subject, message_id=mid,
+            )
+        )
+
+    return SeedGmailResponse(
+        gmail_available=True,
+        delivered=len(items),
+        destination="your own Gmail inbox (userId=me)",
+        items=items,
     )
 
 

@@ -114,6 +114,7 @@ Standalone FastAPI app, **no external network dependency** for generation (templ
 - `app/db.py` — writes only `redteam_ground_truth` (keyed by `redteam_id`); computes the scorecard join.
 - `app/store.py` — in-memory session log powering `/redteam/stats`.
 - `app/inbox.py` — server-side proxy to the Mailhog API (so the dashboard reads the sandbox without CORS).
+- `app/gmail_delivery.py` — **self-only** Gmail insert for the "send test email to my Gmail" dashboard button. Reuses the seeder's `gmail.insert` token (`secrets/token.json`), refreshes over stdlib urllib. Hardcodes `userId="me"` with no recipient parameter — it can only add to the operator's *own* mailbox, never another address.
 - `app/main.py` — endpoints + serves the red-team dashboard.
 - `app/static/index.html` — the red-team dashboard.
 - `gmail_insert.py` + `requirements-gmail.txt` — the **local host** Gmail seeder (see §8).
@@ -125,6 +126,7 @@ Standalone FastAPI app, **no external network dependency** for generation (templ
 - `GET /redteam/inbox` — read-only Mailhog view.
 - `GET /redteam/scorecard` — catch rate / FP rate / per-difficulty (joins ground truth ↔ verdicts).
 - `GET /redteam/stats` — session aggregates.
+- `POST /redteam/seed-gmail` — `{ count, benign_ratio }` → inserts synthetic samples into the operator's **own** Gmail inbox (self-only, `userId="me"`, no recipient). Powers the dashboard's "send test email to my Gmail" button; requires `secrets/token.json` (the seeder's `gmail.insert` token).
 
 ---
 
