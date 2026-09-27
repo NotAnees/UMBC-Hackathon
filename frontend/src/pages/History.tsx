@@ -25,6 +25,8 @@ export default function History() {
   const [data, setData] = useState<VerdictList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
+  // Bumping this remounts MailboxPoll, wiping its on-screen results too.
+  const [viewKey, setViewKey] = useState(0);
 
   const load = useCallback(() => {
     setError(null);
@@ -62,6 +64,14 @@ export default function History() {
     }
   }
 
+  // Demo aid: clear what's on screen only. Does NOT delete any verdict from the
+  // database or touch Gmail/Mailhog — "refresh" (or a poll) brings the rows back.
+  function clearView() {
+    setData({ total: 0, limit: PAGE_SIZE, offset: 0, items: [] });
+    setError(null);
+    setViewKey((key) => key + 1);
+  }
+
   const total = data?.total ?? 0;
 
   return (
@@ -69,7 +79,7 @@ export default function History() {
       <h1>History</h1>
       <p className="subtitle">Everything the detector has scored, newest first.</p>
 
-      <MailboxPoll onDone={refresh} />
+      <MailboxPoll key={viewKey} onDone={refresh} />
 
       <div className="panel">
         <div className="controls" style={{ marginTop: 0 }}>
@@ -114,6 +124,12 @@ export default function History() {
             title="Re-run Claude on the emails shown on this page and update their scores"
           >
             {rescanning ? "AI deep scanning…" : "AI deep scan this page"}
+          </button>
+          <button
+            onClick={clearView}
+            title="Demo only: clears the list from the screen. Nothing is deleted — click refresh to bring it back."
+          >
+            clear view
           </button>
           <span className="placeholder mono">
             {total} verdict{total === 1 ? "" : "s"}
