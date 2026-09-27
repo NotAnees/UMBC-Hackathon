@@ -1,0 +1,21 @@
+/* Inline verdict banner injected into the Gmail message view. Light colors for the
+   light Gmail background. */
+.pd-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: 1px solid;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 13px;
+  color: #0b0f16;
+}
+.pd-legitimate { background: #d1fae5; border-color: #34d399; }
+.pd-suspicious { background: #fef3c7; border-color: #f59e0b; }
+.pd-phishing   { background: #ffe4e6; border-color: #fb7185; }
+.pd-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; opacity: .65; }
+.pd-score { font-weight: 700; }
+.pd-rat { color: #334155; font-weight: 400; }
+.pd-tag { margin-left: auto; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; }
