@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #0a0d14; --panel: #141a26; --border: #263145; --text: #e8edf6; --muted: #8ea0bd;
+    --accent: #38bdf8; --green: #34d399; --amber: #fbbf24; --red: #fb7185;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { width: 420px; max-height: 560px; margin: 0; background: var(--bg); color: var(--text);
+         font-family: system-ui, Segoe UI, Roboto, sans-serif; font-size: 13px; }
+  header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  header .t { font-weight: 700; }
+  header .sub { font-size: 10px; color: var(--accent); letter-spacing: 2px; }
+  .bar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+  button { border: 0; border-radius: 8px; padding: 8px 12px; font-weight: 600; cursor: pointer;
+           color: #04121c; background: linear-gradient(180deg, #67d3ff, var(--accent)); }
+  button.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .status { color: var(--muted); font-size: 12px; }
+  .list { overflow-y: auto; max-height: 440px; }
+  .row { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+  .row .from { color: var(--muted); font-size: 11px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .subj { margin: 2px 0 6px; }
+  .row .foot { display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+  .badge.legitimate { background: rgba(52,211,153,.16); color: var(--green); }
+  .badge.suspicious { background: rgba(251,191,36,.16); color: var(--amber); }
+  .badge.phishing { background: rgba(251,113,133,.18); color: var(--red); }
+  .badge.pending { background: var(--panel); color: var(--muted); }
+  .mini { font-size: 11px; padding: 4px 9px; }
+  .err { padding: 14px 16px; color: var(--red); font-size: 12px; }
+  .rat { color: var(--muted); font-size: 11px; margin-top: 5px; line-height: 1.45; }
+</style>
+</head>
+<body>
+  <header>
+    <div>🛡️</div>
+    <div><div class="t">Phishing Detector</div><div class="sub">GMAIL · LIVE</div></div>
+  </header>
+  <div class="bar">
+    <button id="load">Load inbox</button>
+    <button class="ghost" id="all" disabled>Analyze all</button>
+    <span class="status" id="status">Click “Load inbox” to start.</span>
+  </div>
+  <div class="list" id="list"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Phishing Detector (Red/Blue demo)",
+  "version": "0.1.0",
+  "description": "Reads Gmail messages via the Gmail API and scores them with our phishing detector's /analyze endpoint.",
+  "permissions": ["identity", "storage"],
+  "host_permissions": [
+    "https://gmail.googleapis.com/*",
+    "http://localhost:8000/*",
+    "https://mail.google.com/*"
+  ],
+  "oauth2": {
+    "client_id": "PASTE_YOUR_CHROME_EXTENSION_CLIENT_ID_HERE.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
+  },
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Phishing Detector" },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
