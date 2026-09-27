@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blue Team — Phishing Detector</title>
+<style>
+  :root {
+    --bg: #0a0d14; --panel: rgba(20,26,38,.72); --panel-2: #141a26; --border: #263145;
+    --text: #e8edf6; --muted: #8ea0bd; --accent: #38bdf8; --accent-2: #22d3ee;
+    --green: #34d399; --amber: #fbbf24; --red: #fb7185; --link: #7dd3fc;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); display: flex; min-height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;
+    overflow-x: hidden;
+  }
+  /* animated background */
+  body::before {
+    content: ""; position: fixed; inset: -20%; z-index: -2;
+    background:
+      radial-gradient(38% 48% at 18% 22%, rgba(56,189,248,.20), transparent 60%),
+      radial-gradient(34% 44% at 82% 28%, rgba(99,102,241,.16), transparent 60%),
+      radial-gradient(46% 56% at 62% 82%, rgba(34,211,238,.13), transparent 60%);
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(circle at 50% 35%, #000, transparent 80%);
+    mask-image: radial-gradient(circle at 50% 35%, #000, transparent 80%);
+  }
+  @keyframes drift { to { transform: translate3d(0,-24px,0) scale(1.06); } }
+
+  aside {
+    width: 224px; flex-shrink: 0; background: rgba(15,20,30,.66); backdrop-filter: blur(10px);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    height: 100vh; position: sticky; top: 0;
+  }
+  .brand { padding: 22px 18px; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: .5px; }
+  .brand .sub { display: block; font-size: 10px; color: var(--accent); letter-spacing: 2px; margin-top: 3px; }
+  nav { padding: 12px; display: grid; gap: 5px; }
+  .navitem { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px;
+             color: var(--muted); cursor: pointer; font-size: 14px; border: 1px solid transparent; transition: .15s; }
+  .navitem:hover { background: var(--panel-2); color: var(--text); }
+  .navitem.active { background: rgba(56,189,248,.13); color: var(--accent); border-color: rgba(56,189,248,.35); }
+  aside .foot { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border); font-size: 12px; }
+  aside .foot a { color: var(--link); text-decoration: none; }
+  aside .foot .x { display: inline-flex; align-items: center; gap: 6px; }
+
+  main { flex: 1; height: 100vh; overflow-y: auto; padding: 28px 32px; max-width: 1120px; }
+  .head h1 { font-size: 22px; margin: 0 0 3px; }
+  .head p { margin: 0 0 24px; color: var(--muted); font-size: 13px; }
+  .view { display: none; } .view.active { display: block; }
+
+  .card { background: var(--panel); backdrop-filter: blur(8px); border: 1px solid var(--border);
+          border-radius: 14px; padding: 20px; }
+  .card + .card { margin-top: 18px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  textarea, select, input[type=text] {
+    width: 100%; padding: 11px 13px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 14px; margin-bottom: 14px; font-family: inherit;
+  }
+  textarea { min-height: 200px; font-family: var(--mono); font-size: 12.5px; resize: vertical; }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .row input { width: auto; margin: 0; }
+  .row label { margin: 0; color: var(--text); }
+  button { padding: 12px 18px; border: 0; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer;
+           color: #04121c; background: linear-gradient(180deg, #67d3ff, var(--accent)); }
+  button.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .muted { color: var(--muted); font-size: 13px; }
+  a { color: var(--link); }
+
+  /* verdict banner */
+  .verdict { display: none; }
+  .verdict.show { display: block; }
+  .banner { display: flex; align-items: center; gap: 18px; padding: 18px 20px; border-radius: 12px;
+            border: 1px solid var(--border); margin-bottom: 16px; }
+  .banner .score { font-size: 40px; font-weight: 800; line-height: 1; }
+  .banner .lbl { font-size: 20px; font-weight: 700; text-transform: capitalize; }
+  .banner .sub { color: var(--muted); font-size: 13px; }
+  .b-legitimate { background: rgba(52,211,153,.10); border-color: rgba(52,211,153,.4); }
+  .b-legitimate .score, .b-legitimate .lbl { color: var(--green); }
+  .b-suspicious { background: rgba(251,191,36,.10); border-color: rgba(251,191,36,.4); }
+  .b-suspicious .score, .b-suspicious .lbl { color: var(--amber); }
+  .b-phishing { background: rgba(251,113,133,.12); border-color: rgba(251,113,133,.45); }
+  .b-phishing .score, .b-phishing .lbl { color: var(--red); }
+
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 7px 12px; font-size: 13px; }
+  .kv div:nth-child(odd) { color: var(--muted); }
+  .chips span { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 7px; margin: 5px 6px 0 0;
+                background: rgba(251,113,133,.14); color: #ffb3c0; border: 1px solid rgba(251,113,133,.3); font-family: var(--mono); }
+  .chips span.ok { background: rgba(52,211,153,.12); color: #86efc7; border-color: rgba(52,211,153,.3); }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 6px; }
+  .badge.on { background: rgba(251,113,133,.16); color: #ffb3c0; }
+  .badge.off { background: var(--panel-2); color: var(--muted); }
+  .badge.legitimate { background: rgba(52,211,153,.14); color: var(--green); }
+  .badge.suspicious { background: rgba(251,191,36,.14); color: var(--amber); }
+  .badge.phishing { background: rgba(251,113,133,.16); color: var(--red); }
+  .rationale { background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; padding: 13px;
+               font-size: 13.5px; margin-top: 6px; }
+  .spans li { margin: 6px 0; font-size: 13px; }
+  .spans .q { background: rgba(251,113,133,.16); border-radius: 4px; padding: 1px 5px; font-family: var(--mono); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 11px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  tbody tr:hover { background: var(--panel-2); }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .empty { color: var(--muted); font-size: 13px; padding: 18px 0; }
+  .spin { opacity: .6; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">🛡️ BLUE TEAM<span class="sub">DEFENDER</span></div>
+  <nav>
+    <div class="navitem active" data-view="analyze"><span>🔍</span><span>Analyze</span></div>
+    <div class="navitem" data-view="inbox"><span>📥</span><span>Live Inbox</span></div>
+    <div class="navitem" data-view="history"><span>🕓</span><span>History</span></div>
+  </nav>
+  <div class="foot">
+    <div class="x">⚔️ <a href="http://localhost:8001" target="_blank">Red-Team console →</a></div>
+    <div class="muted" id="dbstat" style="margin-top:8px">checking…</div>
+  </div>
+</aside>
+
+<main>
+  <!-- ANALYZE -->
+  <section class="view active" id="view-analyze">
+    <div class="head"><h1>Analyze an email</h1><p>Paste a raw <code>.eml</code> or just an email body. Two layers score it: deterministic heuristics + a Claude semantic pass.</p></div>
+    <div class="card">
+      <h2>Input</h2>
+      <label for="raw">Raw email / body</label>
+      <textarea id="raw" placeholder="From: ...&#10;Subject: ...&#10;&#10;Paste the email here"></textarea>
+      <div class="row"><input type="checkbox" id="usellm" checked /><label for="usellm">Use the Claude semantic pass</label></div>
+      <button id="analyze-go">Analyze</button>
+      <span class="muted" id="analyze-status" style="margin-left:12px"></span>
+    </div>
+    <div class="card verdict" id="verdict">
+      <div class="banner" id="banner">
+        <div><div class="score" id="v-score">—</div></div>
+        <div><div class="lbl" id="v-label">—</div><div class="sub" id="v-sub"></div></div>
+      </div>
+      <div class="kv">
+        <div>Heuristics</div><div id="v-heur"></div>
+        <div>Claude verdict</div><div id="v-llm"></div>
+        <div>Link flags</div><div id="v-links"></div>
+      </div>
+      <h2 style="margin-top:18px">Claude rationale</h2>
+      <div class="rationale" id="v-rationale">—</div>
+      <h2 style="margin-top:18px">Triggered signals</h2>
+      <div class="chips" id="v-signals"></div>
+      <h2 style="margin-top:18px">Risky spans</h2>
+      <ul class="spans" id="v-spans"></ul>
+    </div>
+  </section>
+
+  <!-- LIVE INBOX -->
+  <section class="view" id="view-inbox">
+    <div class="head"><h1>Live inbox</h1><p>Pull new messages from the Mailhog sandbox and analyze them. This is where the red team's generated attacks show up — classified in real time.</p></div>
+    <div class="card">
+      <div class="toolbar">
+        <button id="poll-go">Poll &amp; analyze</button>
+        <label class="row" style="margin:0"><input type="checkbox" id="poll-llm" /> &nbsp;use Claude</label>
+        <span class="muted" id="poll-status" style="margin-left:auto"></span>
+      </div>
+      <div id="poll-empty" class="empty">Click “Poll &amp; analyze” to fetch and score new sandbox mail.</div>
+      <div style="overflow-x:auto"><table id="poll-table" style="display:none">
+        <thead><tr><th>Sender</th><th>Subject</th><th>Status</th><th>Risk</th><th>Score</th></tr></thead>
+        <tbody id="poll-rows"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <div class="head"><h1>Verdict history</h1><p>Every email that's been analyzed and stored.</p></div>
+    <div class="card">
+      <div class="toolbar"><button class="ghost" id="hist-refresh">↻ Refresh</button><span class="muted" id="hist-count"></span></div>
+      <div id="hist-empty" class="empty">Loading…</div>
+      <div style="overflow-x:auto"><table id="hist-table" style="display:none">
+        <thead><tr><th>Source</th><th>Sender</th><th>Subject</th><th>Risk</th><th>Score</th><th>When</th></tr></thead>
+        <tbody id="hist-rows"></tbody>
+      </table></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const bucket = (label) => ["legitimate","suspicious","phishing"].includes((label||"").toLowerCase()) ? label.toLowerCase() : "suspicious";
+
+  fetch("/health/db").then(r => r.json()).then(d => $("dbstat").textContent = "DB: " + (d.database || "?"))
+    .catch(() => $("dbstat").textContent = "DB: unreachable");
+
+  document.querySelectorAll(".navitem").forEach(item => {
+    item.addEventListener("click", () => {
+      const v = item.dataset.view;
+      document.querySelectorAll(".navitem").forEach(n => n.classList.toggle("active", n === item));
+      document.querySelectorAll(".view").forEach(s => s.classList.toggle("active", s.id === "view-" + v));
+      if (v === "history") loadHistory();
+    });
+  });
+
+  // --- analyze ---
+  $("analyze-go").addEventListener("click", async () => {
+    const raw = $("raw").value.trim();
+    if (!raw) { alert("Paste an email first."); return; }
+    const btn = $("analyze-go"); btn.disabled = true;
+    $("analyze-status").textContent = "Analyzing…";
+    try {
+      const res = await fetch("/analyze", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_email: raw, source: "paste", use_llm: $("usellm").checked }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status + " — " + (await res.text()).slice(0,120));
+      renderVerdict(await res.json());
+      $("analyze-status").textContent = "";
+    } catch (e) { $("analyze-status").textContent = ""; alert("Analyze failed: " + e.message); }
+    finally { btn.disabled = false; }
+  });
+
+  function renderVerdict(d) {
+    const b = bucket(d.risk_label);
+    $("banner").className = "banner b-" + b;
+    $("v-score").textContent = Math.round(d.risk_score);
+    $("v-label").textContent = d.risk_label;
+    $("v-sub").textContent = "risk score " + d.risk_score + " / 100";
+    $("v-heur").innerHTML = `<span class="badge ${bucket(d.heuristic_label)}">${esc(d.heuristic_label)}</span> <span class="muted">${d.heuristic_score}/100</span>`;
+    $("v-llm").innerHTML = d.llm
+      ? `<span class="badge ${bucket(d.llm.verdict)}">${esc(d.llm.verdict)}</span> <span class="muted">${d.llm.confidence}% confident</span>`
+      : `<span class="badge off">not run</span>`;
+    const flag = (on, name) => `<span class="badge ${on ? "on" : "off"}">${name}${on ? " ✓" : ""}</span>`;
+    $("v-links").innerHTML = flag(d.link_mismatch, "link mismatch") + " " + flag(d.unfamiliar_link, "unfamiliar link") + " " + flag(d.typosquat, "typosquat");
+    $("v-rationale").textContent = d.llm ? d.llm.rationale : "The semantic pass did not run (no key or it was skipped); score is deterministic-only.";
+    const fired = (d.signals || []).filter(s => s.triggered);
+    $("v-signals").innerHTML = fired.length ? fired.map(s => `<span title="${esc(s.evidence||"")}">${esc(s.name)} (+${s.weight})</span>`).join("") : `<span class="ok">none triggered</span>`;
+    const spans = (d.llm && d.llm.risky_spans) || [];
+    $("v-spans").innerHTML = spans.length ? spans.map(s => `<li><span class="q">${esc(s.text)}</span> — ${esc(s.reason)}</li>`).join("") : `<li class="muted">none</li>`;
+    $("verdict").classList.add("show");
+  }
+
+  // --- live inbox ---
+  $("poll-go").addEventListener("click", async () => {
+    const btn = $("poll-go"); btn.disabled = true; $("poll-status").textContent = "Polling…";
+    try {
+      const d = await (await fetch("/mailbox/poll?use_llm=" + ($("poll-llm").checked ? "true" : "false"))).json();
+      $("poll-status").textContent = `fetched ${d.fetched} · analyzed ${d.analyzed} · already ${d.already_analyzed}` + (d.used_llm ? " · Claude on" : "");
+      const msgs = d.messages || [];
+      if (!msgs.length) { $("poll-empty").style.display = "block"; $("poll-empty").textContent = "No new messages."; $("poll-table").style.display = "none"; return; }
+      $("poll-empty").style.display = "none"; $("poll-table").style.display = "table";
+      $("poll-rows").innerHTML = msgs.map(m => {
+        const risk = m.risk_label ? `<span class="badge ${bucket(m.risk_label)}">${esc(m.risk_label)}</span>` : "—";
+        return `<tr><td class="mono">${esc(m.sender)}</td><td>${esc(m.subject)}</td><td>${esc(m.status)}</td><td>${risk}</td><td>${m.risk_score ?? "—"}</td></tr>`;
+      }).join("");
+    } catch (e) { alert("Poll failed: " + e.message); }
+    finally { btn.disabled = false; }
+  });
+
+  // --- history ---
+  async function loadHistory() {
+    $("hist-empty").style.display = "block"; $("hist-empty").textContent = "Loading…"; $("hist-table").style.display = "none";
+    try {
+      const d = await (await fetch("/verdicts?limit=100")).json();
+      $("hist-count").textContent = d.total + " verdict(s)";
+      if (!d.items.length) { $("hist-empty").textContent = "Nothing analyzed yet."; return; }
+      $("hist-empty").style.display = "none"; $("hist-table").style.display = "table";
+      $("hist-rows").innerHTML = d.items.map(v => {
+        const risk = v.risk_label ? `<span class="badge ${bucket(v.risk_label)}">${esc(v.risk_label)}</span>` : "—";
+        const when = new Date(v.created_at).toLocaleString();
+        return `<tr><td>${esc(v.source)}</td><td class="mono">${esc(v.sender)}</td><td>${esc(v.subject)}</td><td>${risk}</td><td>${v.risk_score ?? "—"}</td><td class="muted">${esc(when)}</td></tr>`;
+      }).join("");
+    } catch (e) { $("hist-empty").textContent = "Failed to load: " + e.message; }
+  }
+</script>
+</body>
+</html>

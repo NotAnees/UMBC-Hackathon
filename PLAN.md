@@ -17,7 +17,7 @@ A two-sided AI phishing tool:
 - **Frontend**: React (Vite)
 - **Database**: Postgres
 - **Fake inbox for demo**: Mailhog
-- **LLM**: Google AI Studio (Gemini) via the `google-genai` Python SDK
+- **LLM**: Anthropic Claude (Haiku 4.5 by default) via the `anthropic` Python SDK
 
 Why: Python has the best libraries for email/header parsing (SPF/DKIM/DMARC) and a first-class Gemini SDK; React gives us a real interactive dashboard instead of server-rendered pages. The team is already comfortable with React + Python, which matters more than raw setup speed in a 24-hour window.
 
@@ -124,7 +124,7 @@ Status as of 2026-09-26: `docker-compose.yml` and `.env.example` exist. Everythi
 
 Pure Python, no external calls — reliable fallback if the network/API is flaky during the demo.
 
-### Layer 2 — LLM Semantic Pass (Gemini)
+### Layer 2 — LLM Semantic Pass (Claude)
 
 Send sanitized headers + body (truncated) + heuristic findings as context. Ask for **strict JSON**:
 
@@ -139,7 +139,7 @@ Send sanitized headers + body (truncated) + heuristic findings as context. Ask f
 ```
 
 Notes:
-- `backend/app/detection/llm_pass.py` reads `GEMINI_API_KEY` from the environment (set once in `.env`, injected into the `api` container by `docker-compose.yml`) and passes it to the `google-genai` client — e.g. `genai.Client(api_key=os.environ["GEMINI_API_KEY"])` — to actually make this scanning call. This is the one env var in `.env.example` you must replace with a real value; every other default works as-is.
+- `backend/app/detection/llm_pass.py` reads `ANTHROPIC_API_KEY` from the environment (set once in `.env`, injected into the `api` container by `docker-compose.yml`); the `anthropic` client picks it up automatically (`anthropic.Anthropic()`), and the call uses `client.messages.parse(..., output_format=LlmVerdict)` for structured JSON. Default model is `claude-haiku-4-5` (override via `ANTHROPIC_MODEL`). This is the one env var in `.env.example` you must replace with a real value; every other default works as-is.
 - Check current model IDs/params before hardcoding.
 - Cap email body length sent to the API (cost/latency control).
 - Strip/neutralize any `<script>`/active HTML before sending anywhere or rendering in the frontend — render as sanitized text/highlighted spans, never live HTML in an unsandboxed iframe.
@@ -222,7 +222,7 @@ Goal: prove the detector actually generalizes by attacking it with our own gener
 ## 11. Team Onboarding
 
 1. `git clone <repo>` → `cd UMBC-Hackathon`
-2. `cp .env.example .env` → replace `GEMINI_API_KEY` with a real key (share via team password manager/DM, never commit). Every other value in `.env.example` is a working default for local dev — nothing else needs to change.
+2. `cp .env.example .env` → replace `ANTHROPIC_API_KEY` with a real key from console.anthropic.com (share via team password manager/DM, never commit). Every other value in `.env.example` is a working default for local dev — nothing else needs to change.
 3. `docker compose up --build` — spins up all services; `seed` runs once and exits after loading sample data
 4. Open `http://localhost:5173` (frontend), `http://localhost:8025` (Mailhog UI), `http://localhost:8000/docs` (FastAPI Swagger)
 5. Source directories are bind-mounted — local edits hot-reload in both frontend (Vite) and backend (uvicorn `--reload`). Only rebuild (`docker compose up --build`) when dependencies change.
@@ -242,6 +242,6 @@ Goal: prove the detector actually generalizes by attacking it with our own gener
 
 ## 13. Open Decisions / Notes
 
-- LLM provider is **Gemini (Google AI Studio)**, not Anthropic — use `google-genai`, not the `anthropic` package, when implementing `llm_pass.py`.
+- LLM provider is **Anthropic Claude** (switched from Gemini on 2026-09-26) — `llm_pass.py` uses the `anthropic` package with `client.messages.parse`, default model `claude-haiku-4-5`. Note for Claude models: the Opus/Sonnet 5 family rejects a `temperature` param (Haiku still allows it), and structured output uses `output_config`/`output_format`, not Gemini's `response_schema`.
 - One shared API key for the whole team, kept only in `.env`, only the backend container needs it. Set a quota/budget limit before the event.
 - Red-team generator is scoped strictly to our own Mailhog sandbox — see [Section 7](#7-red-team--offensive-module) for the guardrails. Anyone extending `redteam/sender.py` must keep the destination hardcoded to the Mailhog service, never a configurable host.

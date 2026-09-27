@@ -109,6 +109,19 @@ class InboxResponse(BaseModel):
     items: list[InboxItem]
 
 
+class ScorecardResponse(BaseModel):
+    scored: int                       # ground-truth samples that now have a verdict
+    pending: int                      # generated but not yet analyzed
+    phishing_total: int
+    benign_total: int
+    caught: int                       # phishing samples flagged (suspicious or phishing)
+    missed: int                       # phishing samples the detector called legitimate
+    catch_rate: float                 # caught / phishing_total (0-100)
+    false_positives: int              # benign samples wrongly flagged
+    fp_rate: float                    # false_positives / benign_total (0-100)
+    by_difficulty: dict[str, dict]    # {"hard": {"total": n, "caught": n, "catch_rate": p}}
+
+
 class StatsResponse(BaseModel):
     total_generated: int
     delivered: int
