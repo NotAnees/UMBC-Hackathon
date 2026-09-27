@@ -61,9 +61,21 @@ async function analyze(token, id, useLlm) {
   return r.json();
 }
 
+async function explain(verdictId) {
+  // No Gmail token needed — this hits the detector's own API, not Gmail.
+  const r = await fetch(BACKEND + "/verdicts/" + verdictId + "/explain", { method: "POST" });
+  if (!r.ok) throw new Error("explain " + r.status + " — " + (await r.text()).slice(0, 140));
+  return r.json();
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
+      if (msg.type === "explain") {
+        // Explain talks to our backend only, so skip the Gmail auth step.
+        sendResponse({ ok: true, result: await explain(msg.verdictId) });
+        return;
+      }
       const token = await getToken(msg.interactive !== false);
       if (msg.type === "listRecent") {
         sendResponse({ ok: true, items: await listRecent(token) });
