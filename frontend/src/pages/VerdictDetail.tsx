@@ -8,7 +8,9 @@ import {
   sendFeedback,
   type VerdictDetail as Detail,
 } from "../api";
+import Arrow from "../components/Arrow";
 import RiskBadge from "../components/RiskBadge";
+import VerdictBanner from "../components/VerdictBanner";
 import RiskComponents from "../components/RiskComponents";
 import SignalTable from "../components/SignalTable";
 import SpanHighlighter from "../components/SpanHighlighter";
@@ -17,7 +19,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="field">
       <span className="field-label">{label}</span>
-      <span className="field-value mono">{value || "—"}</span>
+      <span className="field-value">{value || "—"}</span>
     </div>
   );
 }
@@ -56,35 +58,44 @@ export default function VerdictDetail() {
     }
   }
 
-  if (error) return <div className="panel error">{error}</div>;
-  if (!detail) return <p className="placeholder">Loading…</p>;
+  if (error)
+    return (
+      <div className="panel error" role="alert">
+        {error}
+      </div>
+    );
+  if (!detail)
+    return (
+      <p className="note" aria-live="polite">
+        Loading…
+      </p>
+    );
 
   const coverage = coverageOf(detail.risk_components);
 
   return (
     <>
-      <p className="subtitle">
-        <Link to="/history">← history</Link>
+      <p className="backlink">
+        <Link to="/history">
+          <Arrow dir="left" />
+          Back to history
+        </Link>
       </p>
 
-      <div className="panel verdict-head">
-        <div>
-          <div className="score-row">
-            <span className="score">{detail.risk_score ?? "—"}</span>
-            <RiskBadge label={detail.risk_label ?? "unknown"} />
-          </div>
-          <div className="placeholder">
-            heuristic view: {detail.heuristic_score ?? "—"} · {detail.heuristic_label ?? "—"}
-          </div>
-        </div>
-        <div className="coverage">
-          <div className="mono">scored on {Math.round(coverage.weightCovered * 100)}% of signals</div>
-          <div className="placeholder mono">
-            verdict #{detail.verdict_id} · {detail.source}
-          </div>
-          <div className="placeholder mono">{new Date(detail.created_at).toLocaleString()}</div>
-        </div>
-      </div>
+      <h1>{detail.subject || "(no subject)"}</h1>
+      <p className="subtitle">
+        From {detail.sender || "unknown sender"} · arrived via {detail.source} ·{" "}
+        {new Date(detail.created_at).toLocaleString()}
+      </p>
+
+      <VerdictBanner
+        label={detail.risk_label}
+        score={detail.risk_score}
+        heuristicScore={detail.heuristic_score}
+        heuristicLabel={detail.heuristic_label}
+        weightCovered={coverage.weightCovered}
+        meta={`verdict #${detail.verdict_id}`}
+      />
 
       {detail.risk_components && (
         <RiskComponents
@@ -95,7 +106,7 @@ export default function VerdictDetail() {
         />
       )}
 
-      <div className="panel">
+      <section className="panel">
         <h2>
           AI deep scan
           {detail.llm_verdict && (
@@ -105,37 +116,40 @@ export default function VerdictDetail() {
         {detail.llm_rationale ? (
           <p className="rationale">{detail.llm_rationale}</p>
         ) : (
-          <p className="placeholder">Did not run for this message.</p>
+          <p className="note">Did not run for this message.</p>
         )}
-      </div>
+      </section>
 
       <SignalTable signals={findingsToSignals(detail.heuristic_findings)} />
 
-      <div className="panel">
+      <section className="panel">
         <h2>
           Message body
           {detail.llm_risky_spans.length > 0 && (
-            <span className="placeholder">risky spans highlighted</span>
+            <span className="muted-note">risky phrases highlighted</span>
           )}
         </h2>
         {detail.body_text ? (
           <SpanHighlighter text={detail.body_text} spans={detail.llm_risky_spans} />
         ) : (
-          <p className="placeholder">No text body stored for this message.</p>
+          <p className="note">No text body stored for this message.</p>
         )}
-      </div>
+      </section>
 
-      <div className="panel">
+      <section className="panel">
         <h2>Headers</h2>
         <Field label="Subject" value={detail.subject} />
         <Field label="From" value={detail.sender} />
         <Field label="Reply-To" value={detail.reply_to} />
-        <Field label="Domain age" value={detail.domain_age_days?.toString() ?? null} />
-      </div>
+        <Field
+          label="Domain age"
+          value={detail.domain_age_days === null ? "not measured" : `${detail.domain_age_days} days`}
+        />
+      </section>
 
-      <div className="panel">
+      <section className="panel">
         <h2>
-          Was this right? <span className="placeholder">real mail has no ground truth</span>
+          Was this right? <span className="muted-note">real mail has no ground truth</span>
         </h2>
         <div className="controls" style={{ marginTop: 0 }}>
           <button className="primary" disabled={saving} onClick={() => void mark(true)}>
@@ -145,9 +159,10 @@ export default function VerdictDetail() {
             Wrong
           </button>
           <input
-            className="note"
+            className="note-input"
             value={note}
-            placeholder="optional note"
+            placeholder="Optional note"
+            aria-label="Optional note about this verdict"
             onChange={(event) => setNote(event.target.value)}
           />
         </div>
@@ -157,12 +172,12 @@ export default function VerdictDetail() {
               <li key={entry.id}>
                 {entry.is_correct ? "correct" : "wrong"}
                 {entry.note ? ` — ${entry.note}` : ""}{" "}
-                <span className="placeholder">{new Date(entry.created_at).toLocaleString()}</span>
+                <span className="muted-note">{new Date(entry.created_at).toLocaleString()}</span>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
     </>
   );
 }

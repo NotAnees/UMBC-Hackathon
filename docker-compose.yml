@@ -26,6 +26,9 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Read by _make_client() in llm_pass.py. Only an org-scoped key needs it; a
+      # workspace-scoped key already carries the workspace and this stays empty.
+      - ANTHROPIC_WORKSPACE_ID=${ANTHROPIC_WORKSPACE_ID:-}
       - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
       - MAILHOG_API_URL=${MAILHOG_API_URL:-http://mailhog:8025/api/v2}
       - API_SHARED_SECRET=${API_SHARED_SECRET:-change-me-hackathon-token}

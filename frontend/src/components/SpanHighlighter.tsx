@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { RiskySpan } from "../api";
 
 interface Located {
@@ -47,7 +49,7 @@ export default function SpanHighlighter({ text, spans }: { text: string; spans: 
       pieces.push(text.slice(cursor, span.start));
     }
     pieces.push(
-      <mark key={index} title={span.reason}>
+      <mark key={index} title={span.reason} style={{ "--span": index } as CSSProperties}>
         {text.slice(span.start, span.end)}
       </mark>,
     );

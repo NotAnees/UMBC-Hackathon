@@ -8,7 +8,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="field">
       <span className="field-label">{label}</span>
-      <span className="field-value mono">{value || "—"}</span>
+      <span className="field-value">{value || "—"}</span>
     </div>
   );
 }
@@ -19,22 +19,6 @@ export default function VerdictCard({ result }: { result: AnalyzeResponse }) {
 
   return (
     <>
-      <div className="panel verdict-head">
-        <div>
-          <div className="score-row">
-            <span className="score">{result.risk_score}</span>
-            <RiskBadge label={result.risk_label} />
-          </div>
-          <div className="placeholder">
-            heuristic view: {result.heuristic_score} · {result.heuristic_label}
-          </div>
-        </div>
-        <div className="coverage">
-          <div className="mono">scored on {Math.round(result.risk_weight_covered * 100)}% of signals</div>
-          <div className="placeholder mono">verdict #{result.verdict_id}</div>
-        </div>
-      </div>
-
       <RiskComponents
         components={result.risk_components}
         unavailable={result.risk_unavailable}
@@ -43,54 +27,52 @@ export default function VerdictCard({ result }: { result: AnalyzeResponse }) {
       />
 
       {result.llm ? (
-        <div className="panel">
+        <section className="panel">
           <h2>
             AI deep scan <RiskBadge label={result.llm.verdict} score={result.llm.confidence} />
           </h2>
           <p className="rationale">{result.llm.rationale}</p>
           {result.llm.signals_confirmed.length > 0 && (
-            <div className="placeholder mono">
-              confirmed: {result.llm.signals_confirmed.join(", ")}
-            </div>
+            <p className="note">Confirmed: {result.llm.signals_confirmed.join(", ")}</p>
           )}
-        </div>
+        </section>
       ) : (
-        <div className="panel">
+        <section className="panel">
           <h2>AI deep scan</h2>
-          <p className="placeholder">
+          <p className="note">
             Did not run — no API key, or the request failed. The score above comes from the
-            deterministic signals only.
+            deterministic checks only.
           </p>
-        </div>
+        </section>
       )}
 
       <SignalTable signals={result.signals} />
 
-      <div className="panel">
+      <section className="panel">
         <h2>
           Message body
-          {spans.length > 0 && <span className="placeholder">risky spans highlighted</span>}
+          {spans.length > 0 && <span className="muted-note">risky phrases highlighted</span>}
         </h2>
         {body ? (
           <SpanHighlighter text={body} spans={spans} />
         ) : (
-          <p className="placeholder">No text body was parsed from this message.</p>
+          <p className="note">No text body was parsed from this message.</p>
         )}
         {result.email.has_html && (
-          <p className="placeholder">
+          <p className="note">
             This message had an HTML part. Its links were analysed, but the markup is never
             rendered here.
           </p>
         )}
-      </div>
+      </section>
 
-      <div className="panel">
+      <section className="panel">
         <h2>Headers</h2>
         <Field label="Subject" value={result.email.subject} />
         <Field label="From" value={result.email.sender} />
         <Field label="Reply-To" value={result.email.reply_to} />
-        <Field label="Auth" value={result.email.auth_results} />
-      </div>
+        <Field label="Authentication" value={result.email.auth_results} />
+      </section>
     </>
   );
 }

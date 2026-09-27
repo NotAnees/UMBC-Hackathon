@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T00:00:00Z",
+  "title": "Design System: Phish Blue Team Console",
+  "extensions": {
+    "colorMeta": {
+      "plane": { "role": "neutral", "displayName": "Console Plane", "canonical": "#f4f5f7", "tonalRamp": ["#1b1d21", "#33373d", "#4e535b", "#6c727c", "#8d949e", "#b0b6bf", "#d3d8df", "#f4f5f7"] },
+      "card": { "role": "neutral", "displayName": "Card White", "canonical": "#ffffff", "tonalRamp": ["#1d1d1d", "#363636", "#525252", "#717171", "#939393", "#b7b7b7", "#dbdbdb", "#ffffff"] },
+      "sunken": { "role": "neutral", "displayName": "Sunken Grey", "canonical": "#eef0f4", "tonalRamp": ["#1a1c20", "#32353b", "#4c5058", "#6a6e78", "#8b909b", "#adb3bd", "#cdd3dc", "#eef0f4"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#dfe3e9", "tonalRamp": ["#181a1e", "#2f3238", "#494d55", "#666b75", "#868c97", "#a8aeba", "#c4cbd4", "#dfe3e9"] },
+      "line-strong": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "#cbd2dc", "tonalRamp": ["#171a1e", "#2d3138", "#464c55", "#636a75", "#828a97", "#a4adba", "#cbd2dc", "#e6eaf0"] },
+      "ink": { "role": "neutral", "displayName": "Navy Ink", "canonical": "#101a2e", "tonalRamp": ["#080d17", "#101a2e", "#1c2c49", "#2c4269", "#40598a", "#6479a8", "#94a4c6", "#c8d1e3"] },
+      "ink-2": { "role": "neutral", "displayName": "Slate Ink", "canonical": "#4a5a72", "tonalRamp": ["#0d1117", "#1a2129", "#2b3542", "#3d4a5c", "#4a5a72", "#6e7f98", "#9aa7ba", "#cbd3de"] },
+      "ink-3": { "role": "neutral", "displayName": "Muted Ink", "canonical": "#5c6b82", "tonalRamp": ["#0f1319", "#1c222b", "#2e3744", "#404c5e", "#5c6b82", "#7d8b9f", "#a6b1c0", "#d0d6df"] },
+      "brand": { "role": "primary", "displayName": "Signal Orange", "canonical": "#e05c33", "tonalRamp": ["#2b0e05", "#4a1a0b", "#6d2812", "#93381a", "#b03d18", "#c9471f", "#e05c33", "#fdeee8"] },
+      "brand-hover": { "role": "primary", "displayName": "Deep Ember", "canonical": "#c9471f", "tonalRamp": ["#260c04", "#43170a", "#622310", "#843018", "#a53c1d", "#c9471f", "#e4663d", "#f8b79f"] },
+      "brand-ink": { "role": "primary", "displayName": "Burnt Orange Ink", "canonical": "#b03d18", "tonalRamp": ["#220b03", "#3d1408", "#591d0d", "#782712", "#963216", "#b03d18", "#d15f37", "#f2ac91"] },
+      "brand-tint": { "role": "primary", "displayName": "Orange Wash", "canonical": "#fdeee8", "tonalRamp": ["#2a120a", "#492013", "#68301d", "#8a4228", "#ab5c3f", "#cc8670", "#e7b7a5", "#fdeee8"] },
+      "brand-edge": { "role": "primary", "displayName": "Orange Hairline", "canonical": "#f4d2c4", "tonalRamp": ["#28130c", "#451f14", "#63301f", "#84432c", "#a45f46", "#c48a72", "#dcb09b", "#f4d2c4"] },
+      "good-fill": { "role": "secondary", "displayName": "Clear Green Fill", "canonical": "#e7f4ec", "tonalRamp": ["#0a1a10", "#123020", "#1a4831", "#226043", "#3b7d5c", "#6da487", "#a9c9b6", "#e7f4ec"] },
+      "good-ink": { "role": "secondary", "displayName": "Clear Green Ink", "canonical": "#0f7a34", "tonalRamp": ["#04180a", "#072b13", "#0a441e", "#0d5e28", "#0f7a34", "#149c44", "#3fc971", "#9be5b6"] },
+      "good-mark": { "role": "secondary", "displayName": "Clear Green Mark", "canonical": "#0ca30c", "tonalRamp": ["#031c03", "#053205", "#074b07", "#096609", "#0b8409", "#0ca30c", "#2bce2b", "#8eeb8e"] },
+      "good-edge": { "role": "secondary", "displayName": "Clear Green Hairline", "canonical": "#bfe3cd", "tonalRamp": ["#0a1a11", "#123022", "#1b4833", "#256147", "#3c7d60", "#6ca386", "#95c6aa", "#bfe3cd"] },
+      "warn-fill": { "role": "secondary", "displayName": "Caution Amber Fill", "canonical": "#fdf1d6", "tonalRamp": ["#1e1503", "#38270a", "#533a10", "#6f4f17", "#8f6a2c", "#b5945c", "#d8bf95", "#fdf1d6"] },
+      "warn-ink": { "role": "secondary", "displayName": "Caution Amber Ink", "canonical": "#8a5a06", "tonalRamp": ["#1b1101", "#301f02", "#4a3003", "#674104", "#8a5a06", "#b4780c", "#dfa22c", "#f6d38d"] },
+      "warn-mark": { "role": "secondary", "displayName": "Caution Amber Mark", "canonical": "#fab219", "tonalRamp": ["#251804", "#412a06", "#5f3d08", "#80530a", "#a36a0c", "#c8830f", "#fab219", "#fdd989"] },
+      "warn-edge": { "role": "secondary", "displayName": "Caution Amber Hairline", "canonical": "#eed9a6", "tonalRamp": ["#1d1503", "#352609", "#4e3910", "#6a4e18", "#89682f", "#ab8d5d", "#cdb37f", "#eed9a6"] },
+      "bad-fill": { "role": "secondary", "displayName": "Alarm Red Fill", "canonical": "#fdeaea", "tonalRamp": ["#280d0d", "#471818", "#672424", "#8a3333", "#ab4f4f", "#cc7d7d", "#e7b3b3", "#fdeaea"] },
+      "bad-ink": { "role": "secondary", "displayName": "Alarm Red Ink", "canonical": "#b3261e", "tonalRamp": ["#230806", "#3e0f0c", "#5b1712", "#7a1f18", "#98241c", "#b3261e", "#d5493f", "#f3a49c"] },
+      "bad-mark": { "role": "secondary", "displayName": "Alarm Red Mark", "canonical": "#d03b3b", "tonalRamp": ["#280c0c", "#461717", "#652222", "#872e2e", "#a83434", "#d03b3b", "#e06f6f", "#f5b5b5"] },
+      "bad-edge": { "role": "secondary", "displayName": "Alarm Red Hairline", "canonical": "#f2c4c1", "tonalRamp": ["#260d0c", "#431817", "#612322", "#823130", "#a24d4b", "#c37b78", "#dc9f9c", "#f2c4c1"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The page h1 only — 'Analyze', 'History'." },
+      "hero-figure": { "displayName": "Hero Figure", "purpose": "The verdict score in the banner, in its band's ink. At most one per screen. Proportional figures, not tabular." },
+      "figure": { "displayName": "Figure", "purpose": "Stat tile counts and the pie's centre total. Proportional figures." },
+      "headline": { "displayName": "Headline", "purpose": "The capitalized verdict word beside the hero figure." },
+      "title": { "displayName": "Title", "purpose": "Panel h2 headings and the wordmark; may carry a trailing 12.5px muted note on the same row." },
+      "body": { "displayName": "Body", "purpose": "Document default at 15px/1.5." },
+      "body-small": { "displayName": "Body Small", "purpose": "Where most of the app's words live: subtitles, notes, table cells, legends, button labels." },
+      "label": { "displayName": "Micro Label", "purpose": "Uppercase wide-tracked label above a number, or the wordmark descriptor. Never a kicker above a heading." },
+      "column-head": { "displayName": "Column Head", "purpose": "Real th scope=col text in every table, muted ink, uppercase." },
+      "mono": { "displayName": "Mono", "purpose": "Machine text only: raw headers, field values, the pasted message body, quoted phrase codes." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-entrance", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Exponential ease-out from an already-visible default; the only curve the entrance uses." },
+      { "name": "bar-draw", "value": "transform: scaleX(0) -> scaleX(1) over 520ms ease-entrance, delay calc(var(--row) * 70ms)", "purpose": "Contribution bars draw left-to-right in descending order of contribution." },
+      { "name": "phrase-sweep", "value": "background-size: 0 100% -> 100% 100% over 420ms ease-entrance, delay calc(560ms + var(--span) * 90ms)", "purpose": "Flagged phrases sweep their highlight in after the bars finish: score, then factors, then the exact words." },
+      { "name": "state-transition", "value": "background 120ms ease, color 120ms ease", "purpose": "The only non-entrance motion: nav item and pie segment state changes." },
+      { "name": "reduced-motion", "value": "@media (prefers-reduced-motion: reduce) { animation: none }", "purpose": "The entrance is removed entirely, not shortened." }
+    ],
+    "focusRing": { "value": "outline: 2px solid #b03d18; outline-offset: 1px", "purpose": "Applied uniformly via :focus-visible to textarea, button, select, input and a. Never a shadow." },
+    "breakpoints": [
+      { "name": "kpi-fold", "value": "1000px" },
+      { "name": "compact", "value": "720px" }
+    ],
+    "container": { "maxWidth": "1160px", "padding": "26px 30px 48px", "compactPadding": "18px 16px 32px" },
+    "verification": "No browser-based screenshot round was possible in this session (no browser automation available). Verified by computed contrast from the shipped token values, the bundled detector, typecheck, and the user's own screenshots — not by an automated visual pass.",
+    "notCanonized": [
+      "Three unicode arrow glyphs ship as icons (VerdictDetail backlink, History pager) while the nav uses authored SVG. Recorded as a defect the build carries, not as a system rule.",
+      "A stray orphan closing brace follows the 720px media query in styles.css; parser error-recovery discards it, so the appended override layer below it still applies. Not repaired (frontend is outside this pass's write boundary).",
+      "styles.css layers a later 'Palo-Alto-derived' override block on top of contradicted earlier declarations (button.primary label #fff -> var(--ink); .navitem.active solid brand -> brand-tint). Only the winning values are documented.",
+      "Two cool-blue one-offs survive from the withdrawn navy palette and belong to no token family: .dropzone.dragging background #eef3fa and ::selection background #cfe0f6. Left untokenized rather than legitimized.",
+      "A 7px radius on select/input.num sits beside the 8px input norm. Documented as an observed one-off, not promoted to a scale step."
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one committing action on a surface. Orange pill with navy ink; white is only legible on the darker hover step.",
+      "html": "<button class=\"ds-btn-primary\">Analyze</button>",
+      "css": ".ds-btn-primary { font-family: Manrope, system-ui, sans-serif; font-size: 13px; font-weight: 700; background: #e05c33; border: 1px solid #e05c33; color: #101a2e; border-radius: 999px; padding: 9px 18px; cursor: pointer; } .ds-btn-primary:hover { background: #c9471f; border-color: #c9471f; color: #ffffff; } .ds-btn-primary:focus-visible { outline: 2px solid #b03d18; outline-offset: 1px; }"
+    },
+    {
+      "name": "Primary Button, Disabled",
+      "kind": "button",
+      "refersTo": "button-primary-disabled",
+      "description": "A waiting action states what it is waiting for instead of dimming. Dashed edge at full opacity.",
+      "html": "<button class=\"ds-btn-primary-disabled\" disabled>Paste an email first</button>",
+      "css": ".ds-btn-primary-disabled { font-family: Manrope, system-ui, sans-serif; font-size: 13px; font-weight: 600; opacity: 1; background: transparent; border: 1px dashed #cbd2dc; color: #5c6b82; border-radius: 999px; padding: 9px 18px; cursor: default; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Every non-committing action. White pill on a strong hairline.",
+      "html": "<button class=\"ds-btn-secondary\">Upload .eml</button>",
+      "css": ".ds-btn-secondary { font-family: Manrope, system-ui, sans-serif; font-size: 13px; font-weight: 600; background: #ffffff; color: #101a2e; border: 1px solid #cbd2dc; border-radius: 999px; padding: 9px 18px; cursor: pointer; } .ds-btn-secondary:hover { background: #eef0f4; border-color: #5c6b82; } .ds-btn-secondary:focus-visible { outline: 2px solid #b03d18; outline-offset: 1px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-stakes affordance. Underlined orange-ink label, no fill, no border.",
+      "html": "<button class=\"ds-btn-ghost\">load sample</button>",
+      "css": ".ds-btn-ghost { font-family: Manrope, system-ui, sans-serif; font-size: 13px; font-weight: 600; background: transparent; border: 1px solid transparent; color: #b03d18; border-radius: 999px; padding: 9px 18px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .ds-btn-ghost:hover { color: #c9471f; } .ds-btn-ghost:focus-visible { outline: 2px solid #b03d18; outline-offset: 1px; }"
+    },
+    {
+      "name": "Paste Field",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "The raw-email field. Mono text, orange caret, strong hairline, vertical resize only.",
+      "html": "<textarea class=\"ds-input-paste\" rows=\"5\" spellcheck=\"false\" aria-label=\"Raw email to analyze\" placeholder=\"Paste full headers + body, or just the body…\"></textarea>",
+      "css": ".ds-input-paste { width: 100%; background: #ffffff; color: #101a2e; border: 1px solid #cbd2dc; border-radius: 8px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; resize: vertical; caret-color: #e05c33; } .ds-input-paste::placeholder { color: #5c6b82; } .ds-input-paste:focus-visible { outline: 2px solid #b03d18; outline-offset: 1px; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Topbar pill with a drawn SVG icon. Active state is a tinted orange pill, never a solid flood.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><svg viewBox=\"0 0 24 24\" class=\"ds-navicon\" aria-hidden=\"true\"><path d=\"M12 3l7 3v5.5c0 4.3-2.9 8.2-7 9.5-4.1-1.3-7-5.2-7-9.5V6l7-3z\"/><path d=\"M9 12l2.2 2.2L15.5 10\"/></svg>Analyze</a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" class=\"ds-navicon\" aria-hidden=\"true\"><path d=\"M3.5 12a8.5 8.5 0 1 0 2.6-6.1\"/><path d=\"M3.5 5v4h4\"/><path d=\"M12 7.5V12l3 1.8\"/></svg>History</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 6px; background: #ffffff; border-bottom: 1px solid #dfe3e9; padding: 10px 24px; font-family: Manrope, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; border: 1px solid transparent; color: #4a5a72; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 120ms ease, color 120ms ease; } .ds-navicon { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; } .ds-nav-item:hover { background: #eef0f4; color: #101a2e; } .ds-nav-item--active { background: #fdeee8; border-color: #f4d2c4; color: #b03d18; font-weight: 700; } .ds-nav-item--active .ds-navicon { opacity: 1; stroke-width: 2; } .ds-nav-item:focus-visible { outline: 2px solid #b03d18; outline-offset: 1px; }"
+    },
+    {
+      "name": "Verdict Badge",
+      "kind": "chip",
+      "refersTo": "badge-phishing",
+      "description": "Read-only band status as a pill: band tint, band ink, band hairline, tabular score.",
+      "html": "<span class=\"ds-badge ds-badge--phishing\">phishing <b>87</b></span> <span class=\"ds-badge ds-badge--suspicious\">suspicious <b>54</b></span> <span class=\"ds-badge ds-badge--legitimate\">legitimate <b>12</b></span> <span class=\"ds-badge ds-badge--unknown\">unknown</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px; border-radius: 999px; border: 1px solid #cbd2dc; font-family: Manrope, system-ui, sans-serif; font-size: 12px; font-weight: 700; text-transform: capitalize; white-space: nowrap; } .ds-badge b { font-variant-numeric: tabular-nums; font-weight: 650; } .ds-badge--legitimate { color: #0f7a34; background: #e7f4ec; border-color: #bfe3cd; } .ds-badge--suspicious { color: #8a5a06; background: #fdf1d6; border-color: #eed9a6; } .ds-badge--phishing { color: #b3261e; background: #fdeaea; border-color: #f2c4c1; } .ds-badge--unknown { color: #4a5a72; background: #eef0f4; border-color: #dfe3e9; }"
+    },
+    {
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "KPI tile: uppercase micro-label with its band key mark, a heavy proportional figure in band ink, then a muted share line.",
+      "html": "<div class=\"ds-tile\"><div class=\"ds-tile-label\"><span class=\"ds-key ds-key--phishing\" aria-hidden=\"true\"></span>Phishing</div><div class=\"ds-tile-value ds-tile-value--bad\">14</div><div class=\"ds-tile-share\">23% of scanned</div></div>",
+      "css": ".ds-tile { background: #ffffff; border: 1px solid #dfe3e9; border-radius: 10px; padding: 14px 16px; font-family: Manrope, system-ui, sans-serif; min-width: 170px; } .ds-tile-label { display: flex; align-items: center; gap: 7px; text-transform: uppercase; letter-spacing: 0.07em; font-size: 11px; font-weight: 700; color: #5c6b82; margin-bottom: 6px; } .ds-key { width: 9px; height: 9px; border-radius: 2px; flex: none; } .ds-key--legitimate { background: #0ca30c; } .ds-key--suspicious { background: #fab219; } .ds-key--phishing { background: #d03b3b; } .ds-tile-value { font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; color: #101a2e; } .ds-tile-value--good { color: #0f7a34; } .ds-tile-value--warn { color: #8a5a06; } .ds-tile-value--bad { color: #b3261e; } .ds-tile-share { color: #5c6b82; font-size: 12px; margin-top: 2px; }"
+    },
+    {
+      "name": "Verdict Banner",
+      "kind": "custom",
+      "refersTo": "verdict-banner-phishing",
+      "description": "The signature surface: a band-flooded panel with the score at 52px in band ink, the band word beside it, and the full three-band legend on the right. The band never appears without its word and its key.",
+      "html": "<section class=\"ds-banner ds-banner--phishing\" aria-label=\"Verdict\"><div class=\"ds-banner-verdict\"><strong class=\"ds-banner-score\">87</strong><div><div class=\"ds-banner-label\">phishing</div><div class=\"ds-banner-sub\">out of 100 · 78% of signals measured</div></div></div><div class=\"ds-banner-side\"><ul class=\"ds-legend\"><li><span class=\"ds-key ds-key--legitimate\" aria-hidden=\"true\"></span>legitimate<span class=\"ds-legend-range\">0–39</span></li><li><span class=\"ds-key ds-key--suspicious\" aria-hidden=\"true\"></span>suspicious<span class=\"ds-legend-range\">40–69</span></li><li class=\"ds-legend-on\"><span class=\"ds-key ds-key--phishing\" aria-hidden=\"true\"></span>phishing<span class=\"ds-legend-range\">70–100</span></li></ul><p class=\"ds-banner-meta\">Deterministic signals alone: 71 · phishing</p></div></section>",
+      "css": ".ds-banner { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 20px 22px; border: 1px solid #dfe3e9; border-radius: 10px; font-family: Manrope, system-ui, sans-serif; } .ds-banner--legitimate { background: #e7f4ec; border-color: #bfe3cd; } .ds-banner--suspicious { background: #fdf1d6; border-color: #eed9a6; } .ds-banner--phishing { background: #fdeaea; border-color: #f2c4c1; } .ds-banner-verdict { display: flex; align-items: center; gap: 18px; } .ds-banner-score { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; } .ds-banner-label { font-size: 20px; font-weight: 650; text-transform: capitalize; line-height: 1.2; } .ds-banner--phishing .ds-banner-score, .ds-banner--phishing .ds-banner-label { color: #b3261e; } .ds-banner--suspicious .ds-banner-score, .ds-banner--suspicious .ds-banner-label { color: #8a5a06; } .ds-banner--legitimate .ds-banner-score, .ds-banner--legitimate .ds-banner-label { color: #0f7a34; } .ds-banner-sub, .ds-banner-meta { color: #4a5a72; font-size: 12.5px; margin: 2px 0 0; } .ds-banner-side { text-align: right; } .ds-legend { list-style: none; display: flex; gap: 14px; justify-content: flex-end; margin: 0 0 4px; padding: 0; font-size: 12px; color: #4a5a72; } .ds-legend li { display: inline-flex; align-items: center; gap: 6px; } .ds-legend-on { color: #101a2e; font-weight: 650; } .ds-legend-range { font-variant-numeric: tabular-nums; color: #5c6b82; } .ds-key { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: none; } .ds-key--legitimate { background: #0ca30c; } .ds-key--suspicious { background: #fab219; } .ds-key--phishing { background: #d03b3b; }"
+    },
+    {
+      "name": "Contribution Table",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Why-this-score: real column headers, tabular numeric cells, and an orange pill bar per row that draws in descending order of contribution. The bar is a second encoding of the adjacent number, never the only one.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-panel-title\">Why this score<span class=\"ds-muted-note\">contributions add up to 87</span></h2><table class=\"ds-table\"><thead><tr><th scope=\"col\">Factor</th><th scope=\"col\" class=\"ds-num-cell\">Level</th><th scope=\"col\" class=\"ds-num-cell\">Weight</th><th scope=\"col\" class=\"ds-num-cell\">Adds</th><th scope=\"col\" class=\"ds-sr-only\">Relative size</th></tr></thead><tbody><tr><td>Sender authentication</td><td class=\"ds-num-cell\">100</td><td class=\"ds-num-cell\">35</td><td class=\"ds-num-cell ds-num-strong\">35</td><td class=\"ds-bar-cell\"><div class=\"ds-bar\" style=\"width:35%;--row:0\" role=\"img\" aria-label=\"35 of 87 points\"></div></td></tr><tr><td>Urgency language</td><td class=\"ds-num-cell\">80</td><td class=\"ds-num-cell\">25</td><td class=\"ds-num-cell ds-num-strong\">20</td><td class=\"ds-bar-cell\"><div class=\"ds-bar\" style=\"width:20%;--row:1\" role=\"img\" aria-label=\"20 of 87 points\"></div></td></tr></tbody></table></section>",
+      "css": ".ds-panel { background: #ffffff; border: 1px solid #dfe3e9; border-radius: 10px; padding: 18px; font-family: Manrope, system-ui, sans-serif; color: #101a2e; } .ds-panel-title { font-size: 16px; font-weight: 700; letter-spacing: -0.005em; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; } .ds-muted-note { color: #5c6b82; font-size: 12.5px; font-weight: 400; letter-spacing: 0; } .ds-table { width: 100%; border-collapse: collapse; } .ds-table th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #5c6b82; padding: 0 8px 7px; border-bottom: 1px solid #dfe3e9; } .ds-table td { padding: 8px; border-top: 1px solid #dfe3e9; font-size: 12.5px; vertical-align: middle; } .ds-num-cell { width: 64px; text-align: right; color: #4a5a72; font-variant-numeric: tabular-nums; } .ds-num-strong { color: #101a2e; font-weight: 650; } .ds-bar-cell { width: 30%; } .ds-bar { height: 7px; border-radius: 999px; background: #e05c33; min-width: 2px; transform-origin: left center; animation: ds-bar-draw 520ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--row, 0) * 70ms); } @keyframes ds-bar-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } } .ds-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; } @media (prefers-reduced-motion: reduce) { .ds-bar { animation: none; } }"
+    },
+    {
+      "name": "Highlighted Phrase Body",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "The quoted message in a sunken mono well, with the AI-flagged phrases marked in Alarm Red. Their tint sweeps in after the bars finish. Attacker-supplied text is always rendered as text, never HTML.",
+      "html": "<pre class=\"ds-body-text\">Subject: URGENT: verify your account\n\n<mark class=\"ds-mark\" style=\"--span:0\">your account will be suspended</mark>. <mark class=\"ds-mark\" style=\"--span:1\">Act now to confirm your identity.</mark></pre>",
+      "css": ".ds-body-text { margin: 0; padding: 12px; background: #eef0f4; border: 1px solid #dfe3e9; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow: auto; color: #101a2e; } .ds-mark { color: #b3261e; background-color: transparent; border-bottom: 2px solid #d03b3b; border-radius: 2px; padding: 0 1px; background-image: linear-gradient(#fdeaea, #fdeaea); background-repeat: no-repeat; background-size: 100% 100%; animation: ds-phrase-sweep 420ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(560ms + var(--span, 0) * 90ms); } @keyframes ds-phrase-sweep { from { background-size: 0 100%; } to { background-size: 100% 100%; } } @media (prefers-reduced-motion: reduce) { .ds-mark { animation: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Evidence Room",
+    "overview": "This is a security console built for a bright room and a projector, not a darkened SOC. It refuses the category default — neon-on-black tiles, glow, sparklines — because that look asks to be trusted rather than earning it. Instead a cool-neutral grey ramp does all the structural work, ink is navy-black rather than pure black, and saturated colour is rationed so hard that its appearance is information. Every number on screen can be traced back to the header or the sentence that produced it, and the type ramp exists to make that chain readable: one loud figure, one label, then quiet supporting text at 12–13px.\n\nDensity is high but never crowded. Cards are white islands on a grey plane, separated by a single hairline and a ground shift rather than by shadow; the whole app ships zero box-shadow declarations. Buttons are fully-rounded pills, headings are heavy (800) and tightly tracked, and the one accent hue — a warm orange — is confined to chrome that could never be mistaken for a verdict. The world is materially flat and typographically confident.\n\nTwo things in this build diverge from the direction contract that preceded it, and the shipped CSS is the truth: the contract specified a navy #1b3a63 primary action with \"no brand accent hue at all\" and \"system sans throughout\", while the build ships a two-step orange brand ramp (#e05c33 fill, #b03d18 text) and Manrope loaded from Google Fonts at 400–800. The contract's reasoning against a green brand still holds and is honoured: the accent is orange precisely because it cannot be confused with any verdict band.",
+    "keyCharacteristics": [
+      "Light, cool-neutral grey ramp carrying every surface and border; no dark mode.",
+      "Zero shadows; depth is ground shift plus one hairline.",
+      "Saturated colour reserved for the verdict triad plus one orange accent for chrome.",
+      "Manrope at 800 for figures and headings; everything supporting at 12–13px.",
+      "Fully-rounded pill buttons and 10px surface cards.",
+      "One orchestrated entrance animation, then stillness.",
+      "Every text colour measures at or above 4.5:1 against its own ground."
+    ],
+    "rules": [
+      { "name": "The Verdict Monopoly Rule", "body": "Green, amber and red belong to the verdict triad and to nothing else. A chart, a tag, a chrome state or an illustration may not borrow a band colour for a meaning other than legitimate / suspicious / phishing. The accent is orange specifically so that no piece of chrome can be read as a verdict.", "section": "colors" },
+      { "name": "The Two-Step Ramp Rule", "body": "Every coloured family ships a fill step and a darker ink step, and text always takes the ink step. Orange fill #e05c33 carries dark navy ink (4.75:1), never white. Amber #fab219 measures 1.68:1 on the plane and green mark #0ca30c measures 3.08:1 — both are fill-and-mark only, never text, never a border carrying meaning alone.", "section": "colors" },
+      { "name": "The Never-Colour-Alone Rule", "body": "The triad is the classic deuteranopia pair, so a band never travels as colour by itself: it always ships colour plus its written label plus its square key mark. Pie slices carry <title> tooltips and a directly-labelled legend with counts and percentages; the bar chart column carries a screen-reader header and per-bar aria-label.", "section": "colors" },
+      { "name": "The Tabular-Where-It-Aligns Rule", "body": "font-variant-numeric: tabular-nums is applied only to digits that stack in a vertical column — numeric table cells, weight columns, badge scores, legend ranges, pie legend values, the domain-age input. Hero and tile figures use Manrope's proportional figures, because a single large number reads better kerned than gridded.", "section": "typography" },
+      { "name": "The Micro-Label Ceiling Rule", "body": "Uppercase wide-tracked 11px labels sit above a number or beside the wordmark, and nowhere else. They must never be used as a kicker or eyebrow over a heading, and 10px is the absolute floor of the type ramp — reached only once, by the wordmark's descriptor.", "section": "typography" },
+      { "name": "The One Family Rule", "body": "There is no display face, no serif, no second sans. Anything that wants to feel different gets a weight change or the mono stack, not a new family.", "section": "typography" },
+      { "name": "The Hairline-Not-Shadow Rule", "body": "Separation is a border and a ground change. Never add a box-shadow to lift a card, a dropdown, a modal or a hover state — raise the surface colour or step the border up to #cbd2dc instead.", "section": "elevation" },
+      { "name": "The Still-After-Entrance Rule", "body": "Motion is one orchestrated entrance and then stillness. Contribution bars draw left-to-right in descending order of contribution (520ms, cubic-bezier(0.16, 1, 0.3, 1), staggered 70ms per row), and after them the flagged phrases sweep their highlight in (420ms, same curve, starting at 560ms, staggered 90ms per span) — score, then factors, then the exact words. Nothing else animates except 120ms colour/background transitions on nav items and pie segments. All of it is disabled under prefers-reduced-motion: reduce.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do build every surface from the grey ramp: Card White raised, Sunken Grey recessed, Console Plane as the ground, one 1px hairline between them.",
+      "Do put dark navy ink on the orange fill and reserve white for the darker hover step (#c9471f, 4.77:1).",
+      "Do use #b03d18 for any orange that is a word, a link, or a focus ring, and #e05c33 only for fills.",
+      "Do ship every verdict as colour plus its written label plus its square key mark.",
+      "Do keep tabular figures to columns that align vertically, and leave hero and tile figures proportional.",
+      "Do draw icons as inline SVG at stroke-width: 1.7 with round caps on a 24 viewBox.",
+      "Do keep real <thead> / <th scope=\"col\"> markup, role=\"alert\" on errors, aria-live on async states, and a :focus-visible ring on every control.",
+      "Do hold the type floor at 11px for labels, 12px for mono, 12.5px for prose.",
+      "Do honour prefers-reduced-motion: reduce by removing the entrance animation entirely."
+    ],
+    "donts": [
+      "Don't add a box-shadow or text-shadow anywhere. Raise the surface or step the border to #cbd2dc instead.",
+      "Don't let green, amber or red mean anything other than legitimate, suspicious or phishing.",
+      "Don't set #fab219 or #0ca30c as text or as a meaning-bearing border — they measure 1.68:1 and 3.08:1 on the plane and are fill/mark only.",
+      "Don't put white type on #e05c33.",
+      "Don't introduce a second type family, a serif, or a display face; weight and the mono stack carry the contrast.",
+      "Don't use a unicode character as an icon — arrows, checks, bullets and dots are all authored SVG or CSS shapes.",
+      "Don't place an uppercase wide-tracked micro-label above a heading as a kicker or eyebrow; it belongs above a number.",
+      "Don't express a discrete verdict as a continuous green-to-red gradient track — a three-hue continuous ramp is the rainbow scale, and the bands are states, not a magnitude.",
+      "Don't dim a disabled control to low opacity; give it a dashed edge and a label that says what it is waiting for.",
+      "Don't render an attacker-supplied message body as HTML; it goes into the mono <pre> as text."
+    ]
+  }
+}

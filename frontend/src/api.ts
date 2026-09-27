@@ -282,3 +282,23 @@ export interface MailboxSourceInfo {
 export async function fetchMailboxSources(): Promise<Record<string, MailboxSourceInfo>> {
   return apiGet<Record<string, MailboxSourceInfo>>("/mailbox/sources");
 }
+
+export interface BandCounts {
+  total: number;
+  legitimate: number;
+  suspicious: number;
+  phishing: number;
+}
+
+/**
+ * Roll-up counts for the KPI row. Four cheap `total`-only reads rather than a new
+ * aggregate endpoint — `limit=1` because only the count is wanted, not the rows.
+ */
+export async function fetchCounts(): Promise<BandCounts> {
+  const [total, legitimate, suspicious, phishing] = await Promise.all(
+    [undefined, "legitimate", "suspicious", "phishing"].map((label) =>
+      fetchVerdicts({ limit: 1, offset: 0, label }).then((r) => r.total),
+    ),
+  );
+  return { total, legitimate, suspicious, phishing };
+}

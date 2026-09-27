@@ -71,7 +71,12 @@ export default function MailboxPoll({ onDone }: { onDone: () => void }) {
         </span>
       </div>
 
-      {error && <p className="error-text">{error}</p>}
+      <div aria-live="polite">{busy && <p className="note">Polling…</p>}</div>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
 
       {result && (
         <>
@@ -88,10 +93,19 @@ export default function MailboxPoll({ onDone }: { onDone: () => void }) {
             </p>
           ) : (
             <table className="verdicts">
+              <thead>
+                <tr>
+                  <th scope="col" className="num-cell">Risk</th>
+                  <th scope="col">Verdict</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">From</th>
+                  <th scope="col" className="sr-only">Open</th>
+                </tr>
+              </thead>
               <tbody>
                 {fresh.map((message) => (
                   <tr key={message.external_id}>
-                    <td className="num-cell mono">{message.risk_score}</td>
+                    <td className="num-cell num">{message.risk_score}</td>
                     <td style={{ width: 110 }}>
                       <RiskBadge label={message.risk_label ?? "unknown"} />
                     </td>

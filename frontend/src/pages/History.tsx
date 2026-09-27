@@ -3,7 +3,14 @@ import { Link } from "react-router-dom";
 
 import { fetchVerdicts, type VerdictList } from "../api";
 import MailboxPoll from "../components/MailboxPoll";
+import Arrow from "../components/Arrow";
 import RiskBadge from "../components/RiskBadge";
+
+const SCORE_TONE: Record<string, string> = {
+  legitimate: "score-good",
+  suspicious: "score-warn",
+  phishing: "score-bad",
+};
 
 const PAGE_SIZE = 25;
 const LABELS = ["", "phishing", "suspicious", "legitimate"];
@@ -90,13 +97,17 @@ export default function History() {
         </div>
       </div>
 
-      {error && <div className="panel error">{error}</div>}
+      {error && (
+        <div className="panel error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="panel">
         {!data ? (
-          <p className="placeholder">Loading…</p>
+          <p className="note" aria-live="polite">Loading…</p>
         ) : data.items.length === 0 ? (
-          <p className="placeholder">
+          <p className="note">
             Nothing matches. Analyze an email, or poll the sandbox inbox above.
           </p>
         ) : (
@@ -104,19 +115,21 @@ export default function History() {
             <table className="verdicts">
               <thead>
                 <tr>
-                  <th>risk</th>
-                  <th>verdict</th>
-                  <th>subject</th>
-                  <th>from</th>
-                  <th>source</th>
-                  <th>llm</th>
-                  <th />
+                  <th scope="col">Risk</th>
+                  <th scope="col">Verdict</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">From</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">AI</th>
+                  <th scope="col" className="sr-only">Open</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((row) => (
                   <tr key={row.verdict_id}>
-                    <td className="num-cell mono strong">{row.risk_score ?? "—"}</td>
+                    <td className={`num-cell num ${SCORE_TONE[row.risk_label ?? ""] ?? ""}`}>
+                      {row.risk_score ?? "—"}
+                    </td>
                     <td style={{ width: 110 }}>
                       <RiskBadge label={row.risk_label ?? "unknown"} />
                     </td>
@@ -138,13 +151,15 @@ export default function History() {
 
             <div className="controls">
               <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                ← newer
+                <Arrow dir="left" />
+                Newer
               </button>
               <button
                 disabled={offset + PAGE_SIZE >= total}
                 onClick={() => setOffset(offset + PAGE_SIZE)}
               >
-                older →
+                Older
+                <Arrow dir="right" />
               </button>
               <span className="placeholder mono">
                 {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}

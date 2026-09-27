@@ -54,8 +54,9 @@ def run_pipeline(
     scored = score_heuristics(heuristics)
     risk = compute_risk_score(
         heuristics,
-        llm_confidence=llm.risk_subscore if llm else None,
+        llm_subscore=llm.risk_subscore if llm else None,
         llm_verdict=llm.verdict if llm else None,
+        llm_confidence=llm.confidence if llm else None,
     )
 
     email, verdict = _persist(

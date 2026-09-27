@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 
 import { analyzeEml, analyzeText, type AnalyzeResponse } from "../api";
+import StatTiles from "../components/StatTiles";
+import VerdictBanner from "../components/VerdictBanner";
 import VerdictCard from "../components/VerdictCard";
 
 const SAMPLE = `Authentication-Results: mx; spf=fail; dkim=fail; dmarc=fail
@@ -15,12 +17,14 @@ Content-Type: text/html
 
 export default function Analyze() {
   const [raw, setRaw] = useState("");
-  const [useLlm, setUseLlm] = useState(true);
+  // Off until demo time: each analysis with this on is one paid Claude call.
+  const [useLlm, setUseLlm] = useState(false);
   const [domainAge, setDomainAge] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [analyzed, setAnalyzed] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const options = () => ({
@@ -33,6 +37,7 @@ export default function Analyze() {
     setError(null);
     try {
       setResult(await work());
+      setAnalyzed((n) => n + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setResult(null);
@@ -42,10 +47,7 @@ export default function Analyze() {
   }
 
   function submitText() {
-    if (raw.trim() === "") {
-      setError("Paste an email first.");
-      return;
-    }
+    if (raw.trim() === "" || busy) return;
     void run(() => analyzeText(raw, options()));
   }
 
@@ -57,6 +59,8 @@ export default function Analyze() {
     <>
       <h1>Analyze</h1>
       <p className="subtitle">Paste a raw email or drop an .eml file to get a verdict.</p>
+
+      <StatTiles reloadKey={analyzed} />
 
       <div
         className={`panel dropzone${dragging ? " dragging" : ""}`}
@@ -75,13 +79,23 @@ export default function Analyze() {
         <textarea
           value={raw}
           onChange={(event) => setRaw(event.target.value)}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submitText();
+          }}
+          aria-label="Raw email to analyze"
           placeholder="Paste full headers + body, or just the body…"
           rows={12}
           spellCheck={false}
         />
 
         <div className="controls">
-          <button className="primary" onClick={submitText} disabled={busy}>
+          <button
+            className="primary"
+            onClick={submitText}
+            disabled={busy || raw.trim() === ""}
+            aria-busy={busy}
+            title="Analyze this email (Cmd/Ctrl + Enter)"
+          >
             {busy ? "Analyzing…" : "Analyze"}
           </button>
 
@@ -128,8 +142,29 @@ export default function Analyze() {
         <p className="placeholder">or drop an .eml anywhere on this panel</p>
       </div>
 
-      {error && <div className="panel error">{error}</div>}
-      {result && <VerdictCard result={result} />}
+      <div aria-live="polite">
+        {busy && <p className="note">Analyzing — running checks{useLlm ? " and the AI deep scan" : ""}…</p>}
+      </div>
+
+      {error && (
+        <div className="panel error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <>
+          <VerdictBanner
+            label={result.risk_label}
+            score={result.risk_score}
+            heuristicScore={result.heuristic_score}
+            heuristicLabel={result.heuristic_label}
+            weightCovered={result.risk_weight_covered}
+            meta={`verdict #${result.verdict_id}`}
+          />
+          <VerdictCard result={result} />
+        </>
+      )}
     </>
   );
 }
