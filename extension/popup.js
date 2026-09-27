@@ -40,6 +40,7 @@ function render() {
         <div class="foot">
           <span class="badge pending" data-badge>not analyzed</span>
           <button class="ghost mini" data-analyze>Analyze</button>
+          <button class="ghost mini" data-explain hidden>Explain</button>
         </div>
         <div class="rat" data-rat></div>
       </div>`
@@ -48,6 +49,9 @@ function render() {
   document.querySelectorAll("[data-analyze]").forEach((btn) =>
     btn.addEventListener("click", () => analyzeRow(btn.closest(".row").dataset.id))
   );
+  document.querySelectorAll("[data-explain]").forEach((btn) =>
+    btn.addEventListener("click", () => explainRow(btn.closest(".row").dataset.id))
+  );
 }
 
 async function analyzeRow(id) {
@@ -55,6 +59,7 @@ async function analyzeRow(id) {
   if (!row) return;
   const badge = row.querySelector("[data-badge]");
   const rat = row.querySelector("[data-rat]");
+  const explainBtn = row.querySelector("[data-explain]");
   badge.className = "badge pending";
   badge.textContent = "analyzing…";
   const resp = await send({ type: "analyze", id, interactive: false, useLlm: true });
@@ -69,4 +74,28 @@ async function analyzeRow(id) {
   badge.className = "badge " + b;
   badge.textContent = `${v.risk_label} · ${Math.round(v.risk_score)}`;
   rat.textContent = v.llm ? v.llm.rationale : "Scored on deterministic signals (Claude pass didn't run).";
+  if (v.verdict_id != null) {
+    row.dataset.verdictId = String(v.verdict_id);
+    explainBtn.hidden = false;
+  }
+}
+
+async function explainRow(id) {
+  const row = document.querySelector(`.row[data-id="${CSS.escape(id)}"]`);
+  if (!row) return;
+  const rat = row.querySelector("[data-rat]");
+  const btn = row.querySelector("[data-explain]");
+  const vid = row.dataset.verdictId;
+  if (!vid) return;
+  btn.disabled = true;
+  rat.textContent = "Asking the model…";
+  const resp = await send({ type: "explain", verdictId: Number(vid) });
+  btn.disabled = false;
+  if (resp && resp.ok && resp.result && resp.result.available && resp.result.explanation) {
+    rat.textContent = resp.result.explanation;
+  } else if (resp && resp.ok && resp.result) {
+    rat.textContent = "AI explanation unavailable (the model didn't run for this verdict).";
+  } else {
+    rat.textContent = "Couldn't get an explanation: " + ((resp && resp.error) || "unknown error");
+  }
 }

@@ -5,8 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.detection.llm_pass import explain_verdict
 from app.models import Email, Feedback, Verdict
-from app.schemas import EmailSource, VerdictDetail, VerdictList, VerdictSummary
+from app.schemas import EmailSource, ExplainResponse, VerdictDetail, VerdictList, VerdictSummary
 
 router = APIRouter(tags=["history"])
 
@@ -111,3 +112,33 @@ def get_verdict(verdict_id: int, db: Session = Depends(get_db)) -> VerdictDetail
             for f in feedback
         ],
     )
+
+
+@router.post("/verdicts/{verdict_id}/explain", response_model=ExplainResponse)
+def explain(verdict_id: int, db: Session = Depends(get_db)) -> ExplainResponse:
+    """On-demand: ask the LLM to explain, in plain English, why this verdict/score was given."""
+    row = db.execute(
+        select(Email, Verdict)
+        .join(Verdict, Verdict.email_id == Email.id)
+        .where(Verdict.id == verdict_id)
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No verdict with id {verdict_id}")
+
+    email, verdict = row
+    text = explain_verdict(
+        {
+            "subject": email.subject,
+            "sender": email.sender,
+            "reply_to": email.reply_to,
+            "auth_results": None,
+            "body_text": email.body_text,
+            "risk_label": verdict.risk_label,
+            "risk_score": verdict.risk_score,
+            "final_label": verdict.final_label,
+            "llm_verdict": verdict.llm_verdict,
+            "llm_rationale": verdict.llm_rationale,
+            "heuristic_findings": verdict.heuristic_findings,
+        }
+    )
+    return ExplainResponse(verdict_id=verdict_id, explanation=text, available=text is not None)

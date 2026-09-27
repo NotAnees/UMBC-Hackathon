@@ -109,6 +109,13 @@ class VerdictList(BaseModel):
     items: list[VerdictSummary]
 
 
+class ExplainResponse(BaseModel):
+    verdict_id: int
+    # On-demand plain-English explanation of the score; null if the LLM couldn't run.
+    explanation: str | None = None
+    available: bool
+
+
 class FeedbackOut(BaseModel):
     id: int
     verdict_id: int
