@@ -261,6 +261,23 @@ export async function pollMailbox(
   return apiGet<MailboxPollResponse>(`/mailbox/poll?source=${source}&use_llm=${useLlm}`);
 }
 
+export interface RescanResponse {
+  rescanned: number;
+  items: { verdict_id: number; risk_score: number | null; risk_label: string | null; llm_verdict: string | null }[];
+}
+
+export async function rescanVerdicts(
+  verdictIds: number[],
+  useLlm = true,
+): Promise<RescanResponse> {
+  const response = await fetch(`${API_URL}/verdicts/rescan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verdict_ids: verdictIds, use_llm: useLlm }),
+  });
+  return unwrap<RescanResponse>(response, "Rescan");
+}
+
 export async function sendFeedback(
   verdictId: number,
   body: { is_correct: boolean; marked_by?: string | null; note?: string | null },

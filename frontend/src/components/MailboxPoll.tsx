@@ -21,11 +21,11 @@ export default function MailboxPoll({ onDone }: { onDone: () => void }) {
     fetchMailboxSources().then(setSources).catch(() => setSources({}));
   }, []);
 
-  async function poll() {
+  async function poll(src = source, llm = useLlm) {
     setBusy(true);
     setError(null);
     try {
-      setResult(await pollMailbox(source, useLlm));
+      setResult(await pollMailbox(src, llm));
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -48,7 +48,16 @@ export default function MailboxPoll({ onDone }: { onDone: () => void }) {
         </button>
         <label className="check">
           source
-          <select value={source} onChange={(event) => setSource(event.target.value)}>
+          <select
+            value={source}
+            onChange={(event) => {
+              const next = event.target.value;
+              setSource(next);
+              setResult(null); // clear the previous source's results…
+              setError(null);
+              void poll(next); // …and reload from the newly selected source
+            }}
+          >
             {Object.entries(sources).map(([key, info]) => (
               <option key={key} value={key} disabled={!info.available}>
                 {info.label}
