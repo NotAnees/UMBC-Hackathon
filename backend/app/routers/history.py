@@ -4,10 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.analysis import rescan_verdict
 from app.db import get_db
 from app.detection.llm_pass import explain_verdict
 from app.models import Email, Feedback, Verdict
-from app.schemas import EmailSource, ExplainResponse, VerdictDetail, VerdictList, VerdictSummary
+from app.schemas import (
+    EmailSource,
+    ExplainResponse,
+    RescanItem,
+    RescanRequest,
+    RescanResponse,
+    VerdictDetail,
+    VerdictList,
+    VerdictSummary,
+)
 
 router = APIRouter(tags=["history"])
 
@@ -142,3 +152,24 @@ def explain(verdict_id: int, db: Session = Depends(get_db)) -> ExplainResponse:
         }
     )
     return ExplainResponse(verdict_id=verdict_id, explanation=text, available=text is not None)
+
+
+@router.post("/verdicts/rescan", response_model=RescanResponse)
+def rescan(payload: RescanRequest, db: Session = Depends(get_db)) -> RescanResponse:
+    """Re-run the detector (LLM on by default) on the given verdicts and update them in
+    place. The frontend passes only the verdicts currently on screen, so a deep scan
+    covers the visible page — not the whole table."""
+    items: list[RescanItem] = []
+    for verdict_id in payload.verdict_ids:
+        result = rescan_verdict(verdict_id, db, use_llm=payload.use_llm)
+        if result is None:
+            continue
+        items.append(
+            RescanItem(
+                verdict_id=result.verdict_id,
+                risk_score=result.risk_score,
+                risk_label=result.risk_label,
+                llm_verdict=result.llm.verdict if result.llm else None,
+            )
+        )
+    return RescanResponse(rescanned=len(items), items=items)

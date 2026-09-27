@@ -14,6 +14,9 @@ class Email(Base):
     source: Mapped[str] = mapped_column(String(20))  # paste | upload | mailhog | redteam
     # Upstream id (e.g. a Mailhog message ID) so repeated polling stays idempotent.
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    # Hash of sender+subject+body so re-analyzing the same message (extension AND poll)
+    # updates one verdict in place instead of piling up rows with different scores.
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     raw_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
     subject: Mapped[str | None] = mapped_column(String(998), nullable=True)
     sender: Mapped[str | None] = mapped_column(String(320), nullable=True)

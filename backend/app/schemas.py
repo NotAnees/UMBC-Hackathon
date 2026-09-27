@@ -116,6 +116,25 @@ class ExplainResponse(BaseModel):
     available: bool
 
 
+class RescanRequest(BaseModel):
+    # The verdicts currently visible on the History page (so a deep scan only re-runs
+    # the ~25 on screen, not the whole table).
+    verdict_ids: list[int] = Field(min_length=1, max_length=100)
+    use_llm: bool = True
+
+
+class RescanItem(BaseModel):
+    verdict_id: int
+    risk_score: float | None = None
+    risk_label: str | None = None
+    llm_verdict: str | None = None
+
+
+class RescanResponse(BaseModel):
+    rescanned: int
+    items: list[RescanItem]
+
+
 class FeedbackOut(BaseModel):
     id: int
     verdict_id: int

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { fetchVerdicts, type VerdictList } from "../api";
+import { fetchVerdicts, rescanVerdicts, type VerdictList } from "../api";
 import MailboxPoll from "../components/MailboxPoll";
 import Arrow from "../components/Arrow";
 import RiskBadge from "../components/RiskBadge";
@@ -24,6 +24,7 @@ export default function History() {
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<VerdictList | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rescanning, setRescanning] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -44,6 +45,22 @@ export default function History() {
     setOffset(0);
     load();
   }, [load]);
+
+  // Re-run Claude on only the verdicts currently on screen (this page) and update
+  // their scores in place, then reload so the new numbers show.
+  async function deepScanPage() {
+    if (!data || data.items.length === 0) return;
+    setRescanning(true);
+    setError(null);
+    try {
+      await rescanVerdicts(data.items.map((row) => row.verdict_id), true);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRescanning(false);
+    }
+  }
 
   const total = data?.total ?? 0;
 
@@ -91,6 +108,13 @@ export default function History() {
           </label>
 
           <button onClick={load}>refresh</button>
+          <button
+            onClick={() => void deepScanPage()}
+            disabled={rescanning || !data || data.items.length === 0}
+            title="Re-run Claude on the emails shown on this page and update their scores"
+          >
+            {rescanning ? "AI deep scanning…" : "AI deep scan this page"}
+          </button>
           <span className="placeholder mono">
             {total} verdict{total === 1 ? "" : "s"}
           </span>
