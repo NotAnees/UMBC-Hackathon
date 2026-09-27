@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from email import message_from_bytes, message_from_string, policy
@@ -9,6 +10,16 @@ from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 
 AUTH_RESULT_HEADERS = ("Authentication-Results", "ARC-Authentication-Results")
+
+# Headers that mark a payload as a real RFC 822 message rather than pasted prose.
+_KNOWN_HEADER_RE = re.compile(
+    r"^(?:from|to|cc|bcc|subject|date|sender|reply-to|return-path|received|"
+    r"authentication-results|arc-authentication-results|received-spf|message-id|"
+    r"in-reply-to|references|mime-version|content-type|content-transfer-encoding|"
+    r"dkim-signature|list-id|list-unsubscribe|x-[a-z0-9-]+)[ \t]*:",
+    re.IGNORECASE | re.MULTILINE,
+)
+_HTML_HINT_RE = re.compile(r"<(?:a\s|/?(?:html|body|div|p|table|span|br)\b)", re.IGNORECASE)
 SPF_RESULTS = frozenset(
     {"pass", "fail", "softfail", "neutral", "none", "temperror", "permerror"}
 )
@@ -139,6 +150,33 @@ def _raw_headers(msg: EmailMessage) -> str | None:
     return "\n".join(lines) or None
 
 
+def looks_like_rfc822(raw: str) -> bool:
+    """Whether the leading block carries a header a real message would have.
+
+    Without this check the stdlib parser reads any leading `Word: value` line as a
+    header, so a pasted body starting "URGENT: your account..." has its first line
+    swallowed as a header named URGENT — and a one-line paste ends up with no body
+    at all.
+    """
+    head = re.split(r"\r?\n\r?\n", raw.lstrip(), maxsplit=1)[0][:4000]
+    return bool(_KNOWN_HEADER_RE.search(head))
+
+
+def _body_only(text: str) -> ParsedEmail:
+    body = text.strip()
+    return ParsedEmail(
+        raw_headers=None,
+        subject=None,
+        sender=None,
+        reply_to=None,
+        auth_results=None,
+        body_text=body or None,
+        # Pasted markup still gets its anchors analysed rather than read as prose.
+        body_html=body if body and _HTML_HINT_RE.search(body) else None,
+        received_at=None,
+    )
+
+
 def parse_email(raw: str | bytes) -> ParsedEmail:
     """Parse a raw RFC 822 message (an uploaded .eml or pasted text) into the
     fields the detection layer consumes.
@@ -146,6 +184,10 @@ def parse_email(raw: str | bytes) -> ParsedEmail:
     Pasted text with no headers at all still parses: it becomes the body, with
     the header-derived fields left as None.
     """
+    sniff = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else (raw or "")
+    if not looks_like_rfc822(sniff):
+        return _body_only(sniff)
+
     if isinstance(raw, bytes):
         msg = message_from_bytes(raw, policy=policy.default)
     else:

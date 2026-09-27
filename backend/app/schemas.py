@@ -5,7 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-EmailSource = Literal["paste", "upload", "mailhog", "redteam"]
+EmailSource = Literal["paste", "upload", "mailhog", "redteam", "gmail"]
+MailboxSource = Literal["mailhog", "gmail"]
 
 
 class AnalyzeRequest(BaseModel):
@@ -13,7 +14,7 @@ class AnalyzeRequest(BaseModel):
     source: EmailSource = "paste"
     use_llm: bool = Field(
         default=True,
-        description="Set false to skip the Gemini pass and score on deterministic signals only",
+        description="Run the Claude AI deep scan. False scores on deterministic signals only.",
     )
     domain_age_days: int | None = Field(
         default=None,
@@ -43,6 +44,9 @@ class ParsedEmailOut(BaseModel):
     received_at: datetime | None = None
     auth_results: str | None = None
     has_html: bool
+    # The parsed body, which is the exact string the semantic pass quotes its risky
+    # spans from — highlighting them against the raw paste would not line up.
+    body_text: str | None = None
 
 
 class RiskySpanOut(BaseModel):
@@ -152,6 +156,7 @@ class MailboxMessage(BaseModel):
 
 
 class MailboxPollResponse(BaseModel):
+    source: MailboxSource
     fetched: int
     analyzed: int
     already_analyzed: int

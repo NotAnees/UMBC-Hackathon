@@ -141,6 +141,7 @@ def _response(
             "received_at": parsed.received_at,
             "auth_results": parsed.auth_results,
             "has_html": parsed.body_html is not None,
+            "body_text": parsed.body_text,
         },
         heuristic_score=scored.heuristic_score,
         heuristic_label=scored.final_label,

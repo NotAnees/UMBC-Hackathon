@@ -21,6 +21,9 @@ services:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
+      # Read-only OAuth token for the Gmail poller; created on the host by
+      # backend/scripts/gmail_authorize.py. Absent until you authorize.
+      - ./secrets:/app/secrets:ro
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
