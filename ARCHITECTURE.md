@@ -24,26 +24,29 @@ The whole point is a **closed loop**: the red team attacks, the blue team defend
 
 | Service | Port | Status | Role |
 |---|---|---|---|
-| `api` (blue backend) | 8000 | built | FastAPI detector: ingestion, heuristics, LLM pass, scoring, history, Mailhog poller. **Serves the blue-team dashboard at `/`.** |
+| `api` (blue backend) | 8000 | built | FastAPI detector: ingestion, heuristics, LLM pass, scoring, history, and a poller that reads **Mailhog or a real Gmail inbox**. Also serves a lightweight static blue dashboard at `/`. |
 | `redteam` | 8001 | built | Standalone FastAPI attacker: generation, delivery, campaign, stats, scorecard. **Serves the red-team dashboard at `/`.** |
+| `frontend` | 5173 | built | **React + Vite blue-team UI** (`frontend/`): Analyze, History, VerdictDetail pages. This is the primary/intended blue UI; the static dashboard at `:8000/` is a no-build fallback (see §11 overlap note). |
 | `postgres` | 5432 | built | Postgres 16. Stores emails, verdicts, feedback, and the red-team answer key. |
 | `mailhog` | 1025 (SMTP), 8025 (UI/API) | built | Fake inbox — the sandbox seam between red and blue. |
-| `frontend` | 5173 | **NOT built** | A Vite/React app is declared in compose but `frontend/` does not exist. The dashboards are instead served same-origin by `api` and `redteam` (no build step, no CORS). |
 | `seed` | one-shot | **NOT built** | Declared in compose; `seed/` does not exist. |
 
-Run everything: `docker compose up --build` (the `frontend`/`seed` services will fail to build — start the four that exist: `docker compose up -d --build api redteam postgres mailhog`).
+Run everything: `docker compose up --build` (the `seed` service will fail to build — start the five that exist: `docker compose up -d --build api redteam postgres mailhog frontend`).
 
-There is also a **Chrome extension** (`extension/`) that runs in the operator's browser — not a container. And a **local Gmail seeder script** (`redteam/gmail_insert.py`) run on the host.
+There is also a **Chrome extension** (`extension/`) that runs in the operator's browser — not a container. And **two host-run Gmail scripts**: `redteam/gmail_insert.py` (the seeder, `gmail.insert`) and `backend/scripts/gmail_authorize.py` (one-time consent for the server-side Gmail poller, `gmail.readonly`).
 
 ---
 
-## 3. The three ways to use the detector
+## 3. The ways to use the detector
 
-1. **Blue-team dashboard** — `http://localhost:8000/` (served by `api`). Views: Analyze (paste/upload → verdict), Live Inbox (poll Mailhog + analyze), History.
-2. **Red-team dashboard** — `http://localhost:8001/` (served by `redteam`). Views: Generate, Campaign, Sandbox, Scorecard, Stats. Cross-links to the blue dashboard.
-3. **Chrome extension** (`extension/`) — reads the operator's real Gmail via the Gmail API and scores messages with the blue team's `/analyze`. Popup + inline verdict banner.
+1. **React frontend** — `http://localhost:5173/` (the `frontend` service). The primary blue-team UI: Analyze, History, VerdictDetail. Talks to the `api` at :8000.
+2. **Blue static dashboard** — `http://localhost:8000/` (served by `api`). A no-build single-HTML fallback: Analyze, Live Inbox (poll + analyze), History. Overlaps the React app (see §11).
+3. **Red-team dashboard** — `http://localhost:8001/` (served by `redteam`). Views: Generate, Campaign, Sandbox, Scorecard, Stats. Cross-links to the blue dashboard.
+4. **Chrome extension** (`extension/`) — reads the operator's real Gmail *in the browser* via the Gmail API and scores messages with `/analyze`. Popup + inline verdict banner.
 
-Both dashboards are single static HTML files with a shared dark, animated-gradient theme (red accent = offense, cyan = defense).
+The red-team dashboard and the blue static dashboard are single static HTML files with a shared dark, animated-gradient theme (red accent = offense, cyan = defense); the React app is the separately-built `frontend/`.
+
+Real Gmail can also reach the detector **server-side** (no browser) via the Gmail poller — see §5.
 
 ---
 
@@ -82,9 +85,10 @@ FastAPI app. Key modules:
 - `app/detection/llm_pass.py` — **LLM semantic pass. Uses Anthropic Claude** (`anthropic` SDK, `client.messages.parse(..., output_format=LlmVerdict)`), **default model `claude-haiku-4-5`** (override `ANTHROPIC_MODEL`). Returns `None` on no key / failure / refusal so the deterministic layers stay authoritative. (History note: this was originally Gemini/`google-genai`; switched to Claude.)
 - `app/detection/scorer.py` — combines heuristics + LLM into `final_score` / `final_label` and a separate `risk_score` / `risk_label`.
 - `app/analysis.py` — shared analysis orchestration used by the routers.
+- `app/gmail_source.py` — **server-side Gmail reader.** Reads a real Gmail inbox the *same* way the extension does (Gmail API, `format=raw`, full MIME so SPF/DKIM/DMARC stay measurable), but from the backend with no browser and no Google client libs: it refreshes access tokens over plain `httpx` using a stored refresh token. **Read-only** (`gmail.readonly`). The `mailbox` poller can pull from Mailhog *or* this. Token file: `secrets/token_readonly.json`, minted by `backend/scripts/gmail_authorize.py` (one-time host consent).
 - `app/models.py` — SQLAlchemy models (see schema below).
-- `app/routers/` — `analyze.py` (`POST /analyze`, `POST /analyze/eml`), `mailbox.py` (`GET /mailbox/poll`), `history.py` (`GET /verdicts`, `GET /verdicts/{id}`), `feedback.py`.
-- `app/static/index.html` — the blue-team dashboard.
+- `app/routers/` — `analyze.py` (`POST /analyze`, `POST /analyze/eml`), `mailbox.py` (`GET /mailbox/poll` — Mailhog or real Gmail), `history.py` (`GET /verdicts`, `GET /verdicts/{id}`), `feedback.py`.
+- `app/static/index.html` — the no-build blue-team dashboard (the React app in `frontend/` is the primary UI).
 
 ### Blue endpoints
 - `POST /analyze` — `{ raw_email, source, use_llm, domain_age_days }` → `AnalyzeResponse` (risk_label/score, heuristic_label/score, `llm` block, signals, link flags).
@@ -167,7 +171,7 @@ The Chrome-Extension OAuth client ID is **not a secret** (no client secret exist
 - `ANTHROPIC_API_KEY` — **the one value you must set** (from console.anthropic.com). The `api` container reads it; the `anthropic` client picks it up automatically. (Was `GEMINI_API_KEY` before the Claude switch.)
 - `DATABASE_URL`, `MAILHOG_API_URL`, `API_SHARED_SECRET`, `FRONTEND_PORT`, `API_PORT`, `REDTEAM_PORT` — working defaults.
 
-Secrets never committed: `.env`, and `secrets/` (Gmail `credentials.json` / `token.json`). Both are git-ignored.
+Secrets never committed: `.env`, and `secrets/` (Gmail `credentials.json` / `token.json` for the seeder, and `token_readonly.json` for the server-side poller). All git-ignored. Compose mounts `./secrets:/app/secrets:ro` into the `api` container so the poller can read its token.
 
 ---
 
@@ -177,10 +181,11 @@ Secrets never committed: `.env`, and `secrets/` (Gmail `credentials.json` / `tok
 2. **Red team is template-driven on purpose** — no live LLM call in the generation path. This is more demo-robust (no refusals, no network) and gives exact `planted_tells` ground truth for free.
 3. **Single-channel ingestion** — only the blue poller writes `emails`; the red team writes only `redteam_ground_truth`. Correlate via the `X-Redteam-Id` header. Do not re-add a direct `emails` insert on the red side (it caused duplicate rows).
 4. **`redteam_runs` vs `redteam_ground_truth`** — the two teams modeled the results table differently and it was never unified. The scorecard uses `redteam_ground_truth`; `redteam_runs` is currently unused. Unifying them is an open task.
-5. **Dashboards are served same-origin** by their own service (`api` at :8000, `redteam` at :8001) as static HTML — deliberately, to avoid a build step and CORS. The `frontend/` React service in compose was never built.
-6. **Difficulty is difficulty *for the detector*** — `hard` means stealthy (passes SPF/DKIM/DMARC), which is *harder* to catch, not "a weak attack."
-7. **Running DB schema drift:** because both services use `CREATE ... IF NOT EXISTS` / `create_all()` (neither ALTERs), if you add a column you must drop+recreate the tables on an existing volume (`docker compose down -v`, or `DROP TABLE ... CASCADE`) for it to take effect. Dev data is disposable.
-8. **Git:** feature branches → `UAT` (integration) → `main`. Commits and PRs carry **no AI attribution** (per the repo owner's standing preference).
+5. **Two blue-team UIs coexist (overlap — pick one).** The React app in `frontend/` (:5173) is the primary/intended UI; the static dashboard served by `api` at `:8000/` is a no-build fallback built earlier. They don't conflict (different files/ports), but only one should be the canonical demo UI. The `redteam` dashboard (:8001) and both static dashboards are same-origin HTML (no build/CORS); the React app is a separate Vite build.
+6. **Two real-Gmail readers coexist (overlap).** The **Chrome extension** reads Gmail *in the browser* (per-user, shows verdicts inline); `backend/app/gmail_source.py` reads Gmail *server-side* (automated ingestion into the poller). Complementary, but overlapping in purpose. There are now **three separate Gmail OAuth artifacts**: the extension's Chrome-Extension client, the seeder's Desktop client (`secrets/credentials.json`/`token.json`, `gmail.insert`), and the poller's refresh token (`secrets/token_readonly.json`, `gmail.readonly`).
+7. **Difficulty is difficulty *for the detector*** — `hard` means stealthy (passes SPF/DKIM/DMARC), which is *harder* to catch, not "a weak attack."
+8. **Running DB schema drift:** because both services use `CREATE ... IF NOT EXISTS` / `create_all()` (neither ALTERs), if you add a column you must drop+recreate the tables on an existing volume (`docker compose down -v`, or `DROP TABLE ... CASCADE`) for it to take effect. Dev data is disposable.
+9. **Git:** feature branches → `UAT` (integration) → `main`. Commits and PRs carry **no AI attribution** (per the repo owner's standing preference).
 
 ---
 
@@ -189,10 +194,13 @@ Secrets never committed: `.env`, and `secrets/` (Gmail `credentials.json` / `tok
 ```bash
 git clone <repo> && cd UMBC-Hackathon
 cp .env.example .env            # then set ANTHROPIC_API_KEY
-docker compose up -d --build api redteam postgres mailhog
-# Blue dashboard:  http://localhost:8000
+docker compose up -d --build api redteam postgres mailhog frontend
+# React frontend:  http://localhost:5173   (primary blue UI)
+# Blue dashboard:  http://localhost:8000    (no-build fallback UI)
 # Red dashboard:   http://localhost:8001
 # Mailhog inbox:   http://localhost:8025
 # API docs:        http://localhost:8000/docs  and  http://localhost:8001/docs
 ```
-Demo the loop: Red dashboard → **Campaign** (fire a mixed batch) → Blue dashboard → **Live Inbox → Poll & analyze** (toggle "use Claude") → Red dashboard → **Scorecard** (catch rate).
+Demo the loop: Red dashboard → **Campaign** (fire a mixed batch) → Blue UI → **Live Inbox → Poll & analyze** (toggle "use Claude") → Red dashboard → **Scorecard** (catch rate).
+
+Optional real-Gmail paths: run `backend/scripts/gmail_authorize.py` on the host to let the poller read a real inbox, or load the `extension/` in Chrome to score Gmail in-browser; `redteam/gmail_insert.py` drops synthetic test mail into your own inbox.
