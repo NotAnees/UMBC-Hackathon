@@ -10,7 +10,7 @@
     "https://mail.google.com/*"
   ],
   "oauth2": {
-    "client_id": "PASTE_YOUR_CHROME_EXTENSION_CLIENT_ID_HERE.apps.googleusercontent.com",
+    "client_id": "740747338078-560r4ovqhtg0itfikt5cb2d07c3l9bi4.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
   },
   "background": { "service_worker": "background.js" },
