@@ -81,6 +81,17 @@ def llm_risk_subscore(verdict: str, confidence: int) -> float:
     return 50.0
 
 
+def _make_client():
+    """Anthropic client. If the API key is org-scoped (not tied to a workspace), set
+    ANTHROPIC_WORKSPACE_ID and it's sent as the required `anthropic-workspace-id` header.
+    """
+    import anthropic
+
+    ws = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    headers = {"anthropic-workspace-id": ws} if ws else None
+    return anthropic.Anthropic(timeout=REQUEST_TIMEOUT_S, default_headers=headers)
+
+
 def is_configured() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -146,10 +157,8 @@ def run_llm_pass(
         return None
 
     try:
-        import anthropic
-
         # ANTHROPIC_API_KEY is read from the environment by the client automatically.
-        client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT_S)
+        client = _make_client()
     except Exception:
         logger.warning("Anthropic client setup failed; scoring without it", exc_info=True)
         return None
@@ -171,7 +180,6 @@ def run_llm_pass(
         response = client.messages.parse(
             model=model,
             max_tokens=MAX_OUTPUT_TOKENS,
-            temperature=0,
             system=SYSTEM_INSTRUCTION,
             messages=[{"role": "user", "content": prompt}],
             output_format=LlmVerdict,
@@ -244,9 +252,7 @@ def explain_verdict(ctx: dict) -> str | None:
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return None
     try:
-        import anthropic
-
-        client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT_S)
+        client = _make_client()
     except Exception:
         logger.warning("Anthropic client setup failed for explain", exc_info=True)
         return None
