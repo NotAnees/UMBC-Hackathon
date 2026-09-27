@@ -1,15 +1,13 @@
-"""Optional Postgres persistence so the blue team can pull generated samples.
+"""Persist the red-team answer key so the blue team can score its detector.
 
-Schema alignment: the blue team owns the canonical schema (backend/app/models.py),
-so we match their `emails` table columns exactly and write there. We do NOT touch
-their `redteam_runs` table (its FK is `generated_email_id` and it carries no ground
-truth) — instead the answer key goes in our own `redteam_ground_truth` table, which
-can't collide with their models regardless of which service creates tables first.
+Single-channel design (2026-09-26): the blue team's Mailhog poller is the ONE path
+that inserts emails into the DB and analyzes them. The red team therefore does NOT
+write the `emails` table anymore (that avoided duplicate rows). Instead we deliver to
+Mailhog with a unique `X-Redteam-Id` header, and record the answer key here keyed by
+that id. The blue team joins a delivered/analyzed email back to its ground truth by
+reading `X-Redteam-Id` out of `emails.raw_headers`.
 
-  emails                - the delivered sample as if it arrived (blue team pulls this
-                          and classifies). NO ground truth, so detection stays honest.
-  redteam_ground_truth  - red-team-owned answer key (label, difficulty, planted tells),
-                          linked to emails.id, used only to SCORE the detector.
+  redteam_ground_truth  - answer key (label, difficulty, planted tells) per redteam_id.
 
 All writes are best-effort: if DATABASE_URL is unset or Postgres is down, generation
 and Mailhog delivery are unaffected — persistence just no-ops.
@@ -35,28 +33,13 @@ def _get_engine():
     return _engine
 
 
-# `emails` mirrors backend/app/models.py:Email exactly (same columns/types) so whichever
-# service creates it first, both sides agree. `redteam_ground_truth` is ours alone.
+# Red-team-owned table only. No FK to emails (we don't create email rows) — the join key
+# is redteam_id, which also travels in the delivered email's X-Redteam-Id header.
 _SCHEMA = [
-    """
-    CREATE TABLE IF NOT EXISTS emails (
-        id           SERIAL PRIMARY KEY,
-        source       VARCHAR(20) NOT NULL DEFAULT 'redteam',
-        external_id  VARCHAR(255),
-        raw_headers  TEXT,
-        subject      VARCHAR(998),
-        sender       VARCHAR(320),
-        reply_to     VARCHAR(320),
-        body_text    TEXT,
-        body_html    TEXT,
-        received_at  TIMESTAMPTZ,
-        created_at   TIMESTAMPTZ DEFAULT now()
-    );
-    """,
     """
     CREATE TABLE IF NOT EXISTS redteam_ground_truth (
         id            SERIAL PRIMARY KEY,
-        email_id      INTEGER REFERENCES emails(id) ON DELETE CASCADE,
+        redteam_id    VARCHAR(64) UNIQUE,
         kind          TEXT,
         ground_truth  TEXT,
         attack_type   TEXT,
@@ -70,7 +53,7 @@ _SCHEMA = [
 
 
 def ensure_schema() -> bool:
-    """Create the tables if they don't exist. Safe to call repeatedly. Never raises."""
+    """Create the ground-truth table if it doesn't exist. Safe to call repeatedly. Never raises."""
     eng = _get_engine()
     if eng is None:
         return False
@@ -95,35 +78,27 @@ def is_available() -> bool:
         return False
 
 
-def save_sample(email_row: dict, run_row: dict) -> int | None:
-    """Insert one email + its ground-truth row. Returns the email id, or None on failure."""
+def save_ground_truth(redteam_id: str, run_row: dict) -> bool:
+    """Record the answer key for one sample, keyed by its redteam_id. Never raises."""
     eng = _get_engine()
     if eng is None:
-        return None
+        return False
     try:
         with eng.begin() as conn:
-            email_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO emails (source, raw_headers, subject, sender, reply_to, body_text, body_html)
-                    VALUES (:source, :raw_headers, :subject, :sender, :reply_to, :body_text, :body_html)
-                    RETURNING id
-                    """
-                ),
-                email_row,
-            ).scalar_one()
             conn.execute(
                 text(
                     """
                     INSERT INTO redteam_ground_truth
-                        (email_id, kind, ground_truth, attack_type, target_brand, difficulty, planted_tells)
+                        (redteam_id, kind, ground_truth, attack_type, target_brand, difficulty, planted_tells)
                     VALUES
-                        (:email_id, :kind, :ground_truth, :attack_type, :target_brand, :difficulty,
+                        (:redteam_id, :kind, :ground_truth, :attack_type, :target_brand, :difficulty,
                          CAST(:planted_tells AS JSONB))
+                    ON CONFLICT (redteam_id) DO NOTHING
                     """
                 ),
-                {**run_row, "email_id": email_id, "planted_tells": json.dumps(run_row.get("planted_tells") or [])},
+                {**run_row, "redteam_id": redteam_id,
+                 "planted_tells": json.dumps(run_row.get("planted_tells") or [])},
             )
-        return email_id
+        return True
     except Exception:
-        return None
+        return False

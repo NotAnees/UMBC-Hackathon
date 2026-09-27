@@ -36,8 +36,10 @@ def build_message(attack: CraftedAttack) -> EmailMessage:
     msg["Reply-To"] = attack.reply_to
     msg["Authentication-Results"] = attack.auth_results
     msg["Received-SPF"] = attack.received_spf
-    # Tag it so the blue-team pipeline can attribute the source as red-team.
+    # Tag it so the blue-team pipeline can attribute the source as red-team, and stamp a
+    # unique id used to join the analyzed email back to its ground-truth answer key.
     msg["X-Redteam-Generated"] = "true"
+    msg["X-Redteam-Id"] = attack.redteam_id
     msg.set_content(attack.body_text)
     if attack.body_html:
         msg.add_alternative(attack.body_html, subtype="html")
@@ -60,6 +62,7 @@ def header_block(attack: CraftedAttack) -> str:
         f"To: {_SANDBOX_RECIPIENT}",
         f"Subject: {attack.subject}",
         "X-Redteam-Generated: true",
+        f"X-Redteam-Id: {attack.redteam_id}",
     ]
     return "\n".join(lines)
 
