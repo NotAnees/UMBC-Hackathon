@@ -33,6 +33,9 @@ class CraftedAttack:
     # For benign samples: the clean signals that make it actually legitimate.
     clean_signals: list[str] = field(default_factory=list)
     ground_truth: str = "phishing"
+    # Unique token stamped into the X-Redteam-Id header and used as the ground-truth key,
+    # so the blue team can join a delivered/analyzed email back to its answer key.
+    redteam_id: str = ""
 
 
 # --- domain crafting -------------------------------------------------------

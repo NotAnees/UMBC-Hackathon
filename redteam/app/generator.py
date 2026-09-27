@@ -8,6 +8,7 @@ live-LLM path would produce, so a generation backend could be swapped in later.
 """
 import random
 import re
+import uuid
 
 from .benign_samples import BENIGN_BANK, DEFAULT_BENIGN_BRANDS
 from .crafting import CraftedAttack, craft_auth, craft_domain, craft_link
@@ -110,6 +111,7 @@ def generate_email(
         body_text=body_text,
         body_html=body_html,
         planted_tells=tells,
+        redteam_id=uuid.uuid4().hex,
     )
 
 
@@ -156,4 +158,5 @@ def generate_benign(
         planted_tells=list(template.surface_traps),
         clean_signals=["spf_pass", "dkim_pass", "dmarc_pass", "domain_aligned", "link_matches_sender"],
         ground_truth="legitimate",
+        redteam_id=uuid.uuid4().hex,
     )
