@@ -64,6 +64,9 @@ services:
       - "${REDTEAM_PORT:-8001}:8001"
     volumes:
       - ./redteam:/app
+      # Read-only gmail.insert token (secrets/token.json) so the "send to my Gmail"
+      # button can insert into the operator's OWN inbox. Created by gmail_insert.py --auth.
+      - ./secrets:/app/secrets:ro
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://phish:phish@postgres:5432/phishdb}
     depends_on:

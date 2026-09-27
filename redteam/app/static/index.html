@@ -144,6 +144,14 @@
         <input type="text" id="brand" placeholder="e.g. PayPal, ShopMart" />
         <div class="row"><input type="checkbox" id="send" checked /><label for="send">Deliver to sandbox</label></div>
         <button id="go">Generate Attack</button>
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+          <label>📨 Send test email(s) to my own Gmail <span class="muted">(self-only)</span></label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="g-count" value="1" min="1" max="10" style="width:80px;margin:0" />
+            <button class="ghost" id="g-go" style="width:auto">Send to my Gmail</button>
+          </div>
+          <div class="muted" id="g-status" style="margin-top:8px">Inserts into YOUR OWN inbox only — it cannot reach any other address.</div>
+        </div>
       </div>
       <div class="card result" id="resultCard">
         <h2>Result</h2>
@@ -258,6 +266,31 @@
   const modeSel = $("mode");
   function applyMode() { const b = modeSel.value === "benign"; $("attackFields").style.display = b ? "none" : ""; $("benignFields").style.display = b ? "" : "none"; $("go").textContent = b ? "Generate Benign" : "Generate Attack"; }
   modeSel.addEventListener("change", applyMode); applyMode();
+
+  // --- send test email(s) to my own Gmail (self-only) ---
+  fetch("/health").then((r) => r.json()).then((d) => {
+    if (!d.gmail_insert_available) {
+      $("g-go").disabled = true;
+      $("g-status").textContent = "Not configured — run `python redteam/gmail_insert.py --auth` on the host first.";
+    }
+  }).catch(() => {});
+  $("g-go").addEventListener("click", async () => {
+    const btn = $("g-go"); btn.disabled = true; btn.textContent = "Sending…";
+    $("g-status").textContent = "Inserting into your inbox…";
+    try {
+      const count = parseInt($("g-count").value, 10) || 1;
+      const res = await fetch("/redteam/seed-gmail", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || ("HTTP " + res.status));
+      $("g-status").textContent = `Delivered ${d.delivered} to ${d.destination}. Check your Gmail (and Spam).`;
+    } catch (e) {
+      $("g-status").textContent = "Failed: " + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Send to my Gmail";
+    }
+  });
 
   $("go").addEventListener("click", async () => {
     const btn = $("go"); const benign = modeSel.value === "benign"; const original = benign ? "Generate Benign" : "Generate Attack";

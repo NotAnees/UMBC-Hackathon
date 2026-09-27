@@ -93,6 +93,29 @@ class BatchResponse(BaseModel):
     items: list[BatchItem]
 
 
+class SeedGmailRequest(BaseModel):
+    # Self-only: these just control how many/what kind get inserted into the operator's
+    # OWN inbox. There is intentionally no recipient field.
+    count: int = Field(default=1, ge=1, le=10)
+    benign_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class SeedGmailItem(BaseModel):
+    label: str
+    variant: str
+    difficulty: Optional[str]
+    from_address: str
+    subject: str
+    message_id: str
+
+
+class SeedGmailResponse(BaseModel):
+    gmail_available: bool
+    delivered: int
+    destination: str            # always the operator's own mailbox ("me")
+    items: list[SeedGmailItem]
+
+
 class InboxItem(BaseModel):
     id: str
     from_addr: str
